@@ -2,18 +2,21 @@
 # Schema and defaults: just_do_it/reference/config.md
 
 tracker:
-  # linear | jira | github | none
-  name: github
+  # linear | jira | github | none — any other value is a custom tracker.
+  # kata has no MCP integration: the Butler runs the `kata` CLI itself
+  # (create, claim, comment, meta, close) and falls back to hand-typed
+  # metadata if the CLI is unavailable.
+  name: kata
 
-  # Default project / board / repo used when creating a new issue.
-  project: "dabit/FM-SWITCH-android"
+  # Project new issues go into (bound to this repo by .kata.toml).
+  project: "fm-switch-android"
 
-  # Team, workspace, or organisation the project lives in.
+  # Actor that owns the work (`kata whoami`).
   team: "dabit"
 
-  # Issue key prefix. GitHub issues are bare numbers, so plan slugs and branch
-  # names read GH-<number>-<slug>.
-  id_prefix: "GH"
+  # kata refs are short ids (e.g. abc4) or fm-switch-android#abc4, with no
+  # key prefix; plan slugs and branches use the short id as-is.
+  id_prefix: ""
 
   # First line of the comment JDI writes back to an issue when research lands.
   # Kept identical across runs so the write is idempotent (update, never duplicate).
