@@ -1,4 +1,4 @@
-status: pending
+status: done
 # 05 — `:fm1` package checks (`.fwsc`, container, application area, official firmware, sample builder)
 
 Depends on: 02, 03

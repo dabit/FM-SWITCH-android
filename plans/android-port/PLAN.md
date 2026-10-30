@@ -871,7 +871,7 @@ document's, not part of the bytes. Generated 2026-10-30 by a Python implementati
 - [ ] 04 — UI foundations: theme, drawing, navigation, welcome notice and route placeholders (depends on: 01)
 
 **Wave 3** — run together
-- [ ] 05 — `:fm1` package checks (depends on: 02, 03)
+- [x] 05 — `:fm1` package checks (depends on: 02, 03)
 - [ ] 06 — Docs: real commands in AGENTS.md, Standard-look confirmations, settled architecture (depends on: 01, 03)
 
 **Wave 4** — run together
