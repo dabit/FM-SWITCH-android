@@ -1,4 +1,4 @@
-status: pending
+status: done
 # 03 — `:fm1` protocol, framing and inbox
 
 Depends on: 01
