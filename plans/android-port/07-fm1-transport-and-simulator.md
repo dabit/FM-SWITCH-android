@@ -1,4 +1,4 @@
-status: pending
+status: done
 # 07 — `:fm1` transport contracts, port matching and the simulated FM-1
 
 Depends on: 05

@@ -875,7 +875,7 @@ document's, not part of the bytes. Generated 2026-10-30 by a Python implementati
 - [ ] 06 — Docs: real commands in AGENTS.md, Standard-look confirmations, settled architecture (depends on: 01, 03)
 
 **Wave 4** — run together
-- [ ] 07 — `:fm1` transport contracts, port matching and the simulated FM-1 (depends on: 05)
+- [x] 07 — `:fm1` transport contracts, port matching and the simulated FM-1 (depends on: 05)
 - [ ] 08 — `:model` data layer: published list, catalogue cache, firmware library, settings, history, start-up (depends on: 05)
 
 **Wave 5** — run together
