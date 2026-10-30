@@ -1,0 +1,58 @@
+# .jdi/config.yml — JDI workflow configuration
+# Schema and defaults: just_do_it/reference/config.md
+
+tracker:
+  # linear | jira | github | none
+  name: github
+
+  # Default project / board / repo used when creating a new issue.
+  project: "dabit/FM-SWITCH-android"
+
+  # Team, workspace, or organisation the project lives in.
+  team: "dabit"
+
+  # Issue key prefix. GitHub issues are bare numbers, so plan slugs and branch
+  # names read GH-<number>-<slug>.
+  id_prefix: "GH"
+
+  # First line of the comment JDI writes back to an issue when research lands.
+  # Kept identical across runs so the write is idempotent (update, never duplicate).
+  research_comment_heading: "## 🔬 Research findings (JDI)"
+
+split:
+  # commits | tasks | subtickets
+  #   commits    — split pieces stay task files and each becomes a commit when done.
+  #                Nothing is written to the tracker.
+  #   tasks      — also mirrored as a task list in the issue body.
+  #   subtickets — also mirrored as GitHub sub-issues of the plan's issue.
+  pieces: commits
+
+tdd:
+  # true | false — whether the Executor writes the failing test first.
+  # Off: tests and implementation in whatever order each task calls for.
+  enabled: false
+
+jev:
+  # true | false — whether roles may ask TypeSafe's Jev to narrow lists
+  # (reference/jev.md, J1–J5). The key is never written into this file.
+  enabled: false
+
+plans:
+  # repo | external
+  mode: repo
+  # Folder, relative to the repository root.
+  path: plans
+
+docs:
+  # Where architecture and design documents live. /jdi:research reads from
+  # here and writes new architecture docs here.
+  path: doc
+
+git:
+  # Default branch; "auto" detects it from origin/HEAD.
+  default_branch: auto
+  # Feature branch prefix, e.g. "feat/". Empty: follow AGENTS.md.
+  branch_prefix: ""
+
+# models: not set — every role runs on the session's own model.
+# consumers: none — nothing depends on this repo's interfaces.
