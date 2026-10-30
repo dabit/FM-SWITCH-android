@@ -1,4 +1,4 @@
-status: pending
+status: done
 # 02 — Licence notices and the bundled V15
 
 Depends on: 01
