@@ -10,7 +10,8 @@ plugins {
 spotless {
     kotlin {
         target("**/*.kt")
-        ktlint()
+        // Compose functions are UpperCamelCase (Compose lint requires it); set in .editorconfig.
+        ktlint().setEditorConfigPath(rootProject.file(".editorconfig"))
     }
     kotlinGradle {
         target("**/*.kts")

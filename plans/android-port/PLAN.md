@@ -26,6 +26,8 @@
 - Android copy: new plain-words strings following REDESIGN.md, replacing iOS-specific ones ("takes a Mac", "Files", "iPhone") — Butler default, not asked.
 - applicationId `dev.drewr.fmswitch`, same as the iOS app — asked and answered ("the ios app id is fine").
 - compileSdk 37, targetSdk 36: latest stable Compose BOM (2026.09.00) and Navigation (2.10.2) need compileSdk ≥ 37; targetSdk stays 36 so runtime behaviour (foreground-service rules) is what research covered — Butler default, not asked (task 01 blocker, 2026-10-30).
+- kotlinx-serialization 1.9.0, not latest: 1.10+ pulls kotlin-stdlib 2.3/2.4, whose metadata the Kotlin 2.2.10 compiler that AGP 9.5 brings cannot read — Butler default, not asked (task 08 blocker, 2026-10-30).
+- ktlint ignores function naming on `@Composable` functions (`.editorconfig`): ktlint and Compose lint otherwise demand opposite cases — Butler default, not asked (task 04 blocker, 2026-10-30).
 - No CI: the local check script is the gate; plan step 16 (GitHub Actions) is dropped — asked and answered ("no ci").
 
 ## References
