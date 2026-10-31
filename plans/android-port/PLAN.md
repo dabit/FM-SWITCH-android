@@ -881,7 +881,7 @@ document's, not part of the bytes. Generated 2026-10-30 by a Python implementati
 **Wave 5** — run together
 - [x] 09 — `:fm1` updater (depends on: 07)
 - [ ] 10 — `:app` platform adapters: Android MIDI transport, HTTP fetch, DataStore settings (depends on: 07, 08)
-- [ ] 11 — Hardware probe screen (debug builds only) (depends on: 07)
+- [x] 11 — Hardware probe screen (debug builds only) (depends on: 07)
 
 **Wave 6**
 - [ ] 12 — `:model` device and install state (depends on: 08, 09)

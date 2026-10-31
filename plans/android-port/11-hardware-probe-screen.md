@@ -1,4 +1,4 @@
-status: pending
+status: done
 # 11 — Hardware probe screen (debug builds only)
 
 Depends on: 07
@@ -55,7 +55,7 @@ format error in a path outside this task's `## Files` is a sibling — wait and 
 3. `grep -rnE 'UPGRADE' app/src/debug/kotlin/dev/drewr/fmswitch/probe/` — expected: no output (the probe never sends
    UPGRADE).
    red when: the probe can start an install.
-   control: `grep -c 'UPGRADE' fm1/src/main/kotlin/dev/drewr/fm1/protocol/Fm1Message.kt` → ≥ `1`.
+   control: `grep -c 'upgradeCommand' fm1/src/main/kotlin/dev/drewr/fm1/protocol/Fm1Message.kt` → ≥ `1` (task 03 named the UPGRADE builder `upgradeCommand`).
    at base: none — written by this task.
    compliant hits: none (a comment saying "never UPGRADE" would match — word it otherwise).
 4. `grep -rn 'isProbeable' app/src/debug/kotlin/dev/drewr/fmswitch/probe/; grep -rnE '"FM1Probe"|ClipboardManager|HANDSHAKE_QUERY' app/src/debug/kotlin/dev/drewr/fmswitch/probe/`
