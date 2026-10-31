@@ -1,4 +1,4 @@
-status: pending
+status: done
 # 16 — Before you start, Installing, Done and Problem
 
 Depends on: 13

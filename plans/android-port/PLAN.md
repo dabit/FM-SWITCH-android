@@ -894,7 +894,7 @@ document's, not part of the bytes. Generated 2026-10-30 by a Python implementati
 **Wave 8** — run together
 - [ ] 14 — Home, Settings and About (depends on: 13)
 - [ ] 15 — Firmwares list, firmware page and My firmwares (depends on: 13)
-- [ ] 16 — Before you start, Installing, Done and Problem (depends on: 13)
+- [x] 16 — Before you start, Installing, Done and Problem (depends on: 13)
 
 **Wave 9**
 - [ ] 17 — UAT: the Android port, end to end (depends on: 01, 02, 03, 04, 05, 06, 07, 08, 09, 10, 11, 12, 13, 14, 15, 16)

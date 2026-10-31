@@ -64,11 +64,13 @@ fun AppRoot() {
                     }
                 }
 
-                override fun openBeforeYouStart() =
-                    navController.navigate(Routes.BEFORE_YOU_START) {
-                        launchSingleTop =
-                            true
-                    }
+                override fun openBeforeYouStart(
+                    targetId: String,
+                    requiresOfficial: Boolean,
+                ) = navController.navigate(Routes.beforeYouStart(targetId, requiresOfficial)) {
+                    launchSingleTop =
+                        true
+                }
 
                 override fun openOutcome() = navController.navigate(Routes.OUTCOME) { launchSingleTop = true }
 
@@ -91,7 +93,7 @@ fun AppRoot() {
                 NavHost(
                     navController = navController,
                     startDestination = Routes.HOME,
-                    modifier = if (welcomeVisible) Modifier.clearAndSetSemantics {} else Modifier,
+                    modifier = if (welcomeVisible || job != null) Modifier.clearAndSetSemantics {} else Modifier,
                 ) {
                     composable(Routes.HOME) { HomeScreen(navigator) }
                     composable(Routes.FIRMWARES) { FirmwareListScreen(navigator) }
@@ -109,7 +111,23 @@ fun AppRoot() {
                     }
                     composable(Routes.MY_FIRMWARES) { MyFirmwaresScreen(navigator) }
                     composable(Routes.SETTINGS) { SettingsScreen(navigator) }
-                    composable(Routes.BEFORE_YOU_START) { BeforeYouStartSheet(navigator) }
+                    composable(
+                        Routes.BEFORE_YOU_START,
+                        arguments =
+                            listOf(
+                                navArgument("targetId") { type = NavType.StringType },
+                                navArgument("requiresOfficial") {
+                                    type = NavType.BoolType
+                                    defaultValue = false
+                                },
+                            ),
+                    ) {
+                        BeforeYouStartSheet(
+                            requireNotNull(it.arguments?.getString("targetId")),
+                            it.arguments?.getBoolean("requiresOfficial") ?: false,
+                            navigator,
+                        )
+                    }
                     composable(Routes.OUTCOME) { OutcomeScreens(navigator) }
                 }
             }
