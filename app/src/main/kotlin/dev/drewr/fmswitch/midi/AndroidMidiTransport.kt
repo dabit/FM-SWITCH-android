@@ -91,11 +91,9 @@ class AndroidMidiTransport(
                         trySend(Unit)
                     }
 
-                    override fun onDeviceStatusChanged(status: android.media.midi.MidiDeviceStatus) {
-                        val line = "MIDI device status changed: ${status.deviceInfo.id}"
-                        log(line)
-                        trySend(Unit)
-                    }
+                    // Status changes fire whenever a port is opened or closed, including by our own
+                    // scans, so rescanning on them loops. Only plugging in or removing a device counts.
+                    override fun onDeviceStatusChanged(status: android.media.midi.MidiDeviceStatus) = Unit
                 }
             registerDeviceCallback(manager, callback, mainHandler)
             awaitClose { manager.unregisterDeviceCallback(callback) }
