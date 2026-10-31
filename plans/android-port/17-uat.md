@@ -246,5 +246,14 @@ Setup (once): `cd /home/dabit/git/FM-SWITCH-android; export JAVA_HOME="$(mise wh
   - On such phones, an install pauses at each reboot while the screen is locked and carries on when it's unlocked. If
     the lock lands before the loader appears, the write itself waits.
   - `InstallingOverlay` keeps the screen on, so this only happens when someone locks the phone by hand.
-- Still to do, with a phone and an FM-1: U3 resume after pulling the cable. Also the rest of U0, by hand: the cable-pull resume and the refusal paths in
+- U3, on the same phone and FM-1 (2026-10-31): passed. The run was Felucca 1.7.0 over itself, with the phone unlocked.
+  The log shows the cable disconnected twice while the FM-1 was in its loader ("Felucca Update", `1209:0002`), with
+  the USB root hubs gone both times:
+  - 09:51:46, 0.2 s after the loader appeared, and back at 09:51:52;
+  - 09:52:01, mid-write, and back at 09:52:08.
+
+  The owner saw the carry-on screen, plugged back in and tapped Carry on installing. The write finished at 09:52:26,
+  and the FM-1 came back as "Felucca" (`1209:0001`) at 09:52:33. The app ended on "Felucca is ready to play",
+  `FM-1_917`. No crash.
+- Remaining by hand (no FM-1 needed): the simulator's refusal paths, TalkBack and dark mode. Also the rest of U0, by hand: the cable-pull resume and the refusal paths in
   the simulator, TalkBack, and dark mode.
