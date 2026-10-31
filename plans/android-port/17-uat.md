@@ -229,8 +229,10 @@ Setup (once): `cd /home/dabit/git/FM-SWITCH-android; export JAVA_HOME="$(mise wh
   - Bugs found and fixed:
     - `8b58b4b`: the app rescanned on every MIDI status change. Its own handshake caused those changes, so it sent
       about ten handshakes a second.
-    - Not fixed: the debug probe screen keeps its session open after a handshake, which leaves Home "Not connected"
-      until the app restarts. It affects debug builds only.
+    - `59afb35`: the debug probe screen kept its session open after a handshake, which left Home "Not connected"
+      until the app restarted. It now closes the session 2 s later and shows the last answer at the top. Checked on
+      the phone (2026-10-31 11:56): "Last answer: FM-1_917", the session closed 2 s after the handshake, then Home
+      showed "Connected, reporting FM-1_917" without a restart.
 - U4, on the same phone and FM-1 (2026-10-31): passed, with one Samsung caveat.
   - The run was Felucca 1.7.0 over itself. The FM-1 now reported `FM-1_917`, so Before you start showed the
     same-firmware notice rather than the backup tick.
