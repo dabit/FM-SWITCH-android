@@ -1,0 +1,17 @@
+<!-- Ported from FM-SWITCH App/Standard/Home/HomeView.swift. -->
+<resources>
+    <string name="home_change_firmware">Change firmware</string>
+    <string name="home_firmwares_empty">Synths, grooveboxes and games, or the official one.</string>
+    <plurals name="home_firmwares_count"><item quantity="one">%1$d firmware to try: synths, grooveboxes and games, or the official one.</item><item quantity="other">%1$d firmwares to try: synths, grooveboxes and games, or the official one.</item></plurals>
+    <string name="home_my_firmwares">My firmwares</string>
+    <plurals name="home_saved_count"><item quantity="one">%1$d saved</item><item quantity="other">%1$d saved</item></plurals>
+    <string name="home_finish_title">Your FM-1 is waiting to finish an install</string>
+    <string name="home_finish_detail">Carry on with %1$s, and it picks up where it stopped.</string>
+    <string name="home_finish_action">Finish installing %1$s</string>
+    <string name="home_finish_missing">Install the firmware you were installing again, from the firmware list.</string>
+    <string name="home_connect_title">Connect your FM-1</string>
+    <string name="home_connect_one">1. Switch it on.</string>
+    <string name="home_connect_two">2. Plug it into this phone or tablet with a USB data cable.</string>
+    <string name="home_connect_three">3. Close any other music app that\'s using it.</string>
+    <string name="home_try_again">Try again</string>
+</resources>

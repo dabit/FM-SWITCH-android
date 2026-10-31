@@ -1,4 +1,4 @@
-status: pending
+status: done
 # 14 — Home, Settings and About
 
 Depends on: 13

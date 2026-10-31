@@ -31,8 +31,9 @@ class DataStoreAppSettings private constructor(
     initialValues: Preferences,
     scope: CoroutineScope,
 ) : AppSettings {
-    @Volatile
-    private var values: Preferences = initialValues
+    private val mutableChanges = MutableStateFlow(initialValues)
+    val changes: StateFlow<Preferences> = mutableChanges.asStateFlow()
+    private val values: Preferences get() = changes.value
     private val mutableAppearance = MutableStateFlow(appearanceFrom(initialValues))
     val appearanceFlow: StateFlow<Appearance> = mutableAppearance.asStateFlow()
     private val writes = Channel<(MutablePreferences) -> Unit>(Channel.UNLIMITED)
@@ -108,7 +109,7 @@ class DataStoreAppSettings private constructor(
         key: Preferences.Key<T>,
         value: T,
     ) {
-        values = values.toMutablePreferences().also { it[key] = value }
+        mutableChanges.value = values.toMutablePreferences().also { it[key] = value }
         writes.trySend { it[key] = value }
     }
 
@@ -116,7 +117,7 @@ class DataStoreAppSettings private constructor(
         key: Preferences.Key<String>,
         value: String?,
     ) {
-        values =
+        mutableChanges.value =
             values.toMutablePreferences().also {
                 if (value == null) it.remove(key) else it[key] = value
             }

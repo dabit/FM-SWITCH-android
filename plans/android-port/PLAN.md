@@ -892,7 +892,7 @@ document's, not part of the bytes. Generated 2026-10-30 by a Python implementati
 - [x] 13 — App wiring and the foreground service (depends on: 04, 10, 12)
 
 **Wave 8** — run together
-- [ ] 14 — Home, Settings and About (depends on: 13)
+- [x] 14 — Home, Settings and About (depends on: 13)
 - [ ] 15 — Firmwares list, firmware page and My firmwares (depends on: 13)
 - [x] 16 — Before you start, Installing, Done and Problem (depends on: 13)
 
