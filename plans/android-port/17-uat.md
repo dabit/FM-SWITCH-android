@@ -257,5 +257,18 @@ Setup (once): `cd /home/dabit/git/FM-SWITCH-android; export JAVA_HOME="$(mise wh
   The owner saw the carry-on screen, plugged back in and tapped Carry on installing. The write finished at 09:52:26,
   and the FM-1 came back as "Felucca" (`1209:0001`) at 09:52:33. The app ended on "Felucca is ready to play",
   `FM-1_917`. No crash.
-- Remaining by hand (no FM-1 needed): the simulator's refusal paths, TalkBack and dark mode. Also the rest of U0, by hand: the cable-pull resume and the refusal paths in
-  the simulator, TalkBack, and dark mode.
+- U0 remainder and dark mode, on the same phone with the simulated FM-1 (2026-10-31): passed after one fix.
+  - Dark mode: Home, the firmware list and Settings read correctly.
+  - Before you start: the Install button stays disabled until all three ticks are on.
+  - Back does nothing during an install; V15 installs to "FM-1 V15 is ready to play" (`FM-1_015`).
+  - V15 over V15: "Your FM-1 is already running this, so there's nothing to install." The button stays disabled
+    even with both remaining ticks on.
+  - m-bootloader: the V15 install stops with "Your FM-1 is fine… Install MIDIMON 0.4 or LOOM-8 first, then FM-1 V15."
+    and offers Install MIDIMON.
+  - Pull the cable at 45%: "The install was interrupted" with the two steps → Carry on installing → "ready to play".
+    The cable-pull toggle applies only after "Reset the simulated FM-1", as in the iOS app.
+  - The Installing screen shows the new locked-phone note.
+  - Bug found and fixed in `406c949`: the install overlay's headings ("Installing…", "…is ready to play", "The
+    install stopped/was interrupted") were black on the dark background. The overlay sits outside the app's surface;
+    it now sets the theme's text colour. Checked on the phone afterwards.
+- Remaining by hand: TalkBack.
