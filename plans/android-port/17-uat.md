@@ -231,6 +231,20 @@ Setup (once): `cd /home/dabit/git/FM-SWITCH-android; export JAVA_HOME="$(mise wh
       about ten handshakes a second.
     - Not fixed: the debug probe screen keeps its session open after a handshake, which leaves Home "Not connected"
       until the app restarts. It affects debug builds only.
-- Still to do, with a phone and an FM-1: U3 resume after pulling the cable, U4 install with the screen off or the app in
-  the background. Also the rest of U0, by hand: the cable-pull resume and the refusal paths in
+- U4, on the same phone and FM-1 (2026-10-31): passed, with one Samsung caveat.
+  - The run was Felucca 1.7.0 over itself. The FM-1 now reported `FM-1_917`, so Before you start showed the
+    same-firmware notice rather than the backup tick.
+  - Sequence: start the install, press Home, lock the screen at 09:49:13. The loader appeared at 09:49:13.6, just
+    before the lock, and the write finished while locked (the loader left at 09:49:38).
+  - `FlashService` stayed in the foreground (`types=0x10`), and the partial wake lock `dev.drewr.fmswitch:flash` was held
+    for 49 s.
+  - POST_NOTIFICATIONS was not granted, so no notification was visible. The log has no "couldn't start the service" line.
+  - Caveat: the phone has Samsung's "block USB while locked" setting on (`settings secure block_usb_lock=1`). It
+    didn't enumerate the FM-1 after it rebooted out of the loader until the phone was unlocked (`USER_PRESENT` and
+    `usbDeviceAdded` both at 09:50:01). Then the app finished by itself: "Felucca is ready to play", the wake lock was
+    released, and the service stopped.
+  - On such phones, an install pauses at each reboot while the screen is locked and carries on when it's unlocked. If
+    the lock lands before the loader appears, the write itself waits.
+  - `InstallingOverlay` keeps the screen on, so this only happens when someone locks the phone by hand.
+- Still to do, with a phone and an FM-1: U3 resume after pulling the cable. Also the rest of U0, by hand: the cable-pull resume and the refusal paths in
   the simulator, TalkBack, and dark mode.
