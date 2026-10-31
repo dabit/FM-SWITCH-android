@@ -53,6 +53,15 @@ class LibraryTest {
         assertTrue(library().items.size == 1)
     }
 
+    @Test fun loadsSavedAndBuiltInPackages() {
+        val library = library()
+        val saved = add(library, SamplePackage.file("FM-1_916"), "Felucca")
+        val savedPackage = kotlinx.coroutines.runBlocking { library.loadPackage(saved) }
+        val officialPackage = kotlinx.coroutines.runBlocking { library.loadPackage(library.official!!) }
+        assertEquals(saved.sha256, savedPackage.sha256)
+        assertEquals(library.official!!.sha256, officialPackage.sha256)
+    }
+
     @Test fun cannotRemoveTheBuiltInCopy() {
         val l = library()
         assertTrue(!l.canRemove(l.official!!))

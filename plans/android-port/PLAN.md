@@ -886,7 +886,7 @@ document's, not part of the bytes. Generated 2026-10-30 by a Python implementati
 - [x] 11 — Hardware probe screen (debug builds only) (depends on: 07)
 
 **Wave 6**
-- [ ] 12 — `:model` device and install state (depends on: 08, 09)
+- [x] 12 — `:model` device and install state (depends on: 08, 09)
 
 **Wave 7**
 - [ ] 13 — App wiring and the foreground service (depends on: 04, 10, 12)

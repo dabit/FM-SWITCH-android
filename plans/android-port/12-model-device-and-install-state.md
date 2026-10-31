@@ -1,4 +1,4 @@
-status: pending
+status: done
 # 12 — `:model` device and install state
 
 Depends on: 08, 09
@@ -67,6 +67,9 @@ transport and **standard** timings (virtual). Method names:
 - model/src/test/kotlin/dev/drewr/fmswitch/model/device/ReadinessTest.kt
 - model/src/test/kotlin/dev/drewr/fmswitch/model/device/StandardLookTest.kt
 - model/src/test/kotlin/dev/drewr/fmswitch/model/device/BeforeYouStartStateTest.kt
+- model/src/main/kotlin/dev/drewr/fmswitch/model/library/FirmwareLibrary.kt (only to add `loadPackage`, which task 08 missed — FirmwareLibrary.swift:137-141; orchestrator, 2026-10-30)
+- model/src/test/kotlin/dev/drewr/fmswitch/model/library/LibraryTest.kt (a test for `loadPackage`)
+- fm1/src/main/kotlin/dev/drewr/fm1/updater/Fm1UpdateError.kt (only to expose `phase` as a `val` on Stalled/Disconnected so resume/refusal rules match Swift without parsing message text; orchestrator, 2026-10-30)
 
 ## Verification
 Run from the repo root after `export JAVA_HOME="$(mise where java@temurin-21)" ANDROID_HOME="$HOME/Android/Sdk"`.

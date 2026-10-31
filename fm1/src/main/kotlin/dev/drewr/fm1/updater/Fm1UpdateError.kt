@@ -82,7 +82,7 @@ sealed class Fm1UpdateError(
         )
 
     class Stalled(
-        phase: Phase,
+        val phase: Phase,
         requests: Int,
     ) : Fm1UpdateError(
             if (phase ==
@@ -95,7 +95,7 @@ sealed class Fm1UpdateError(
         )
 
     class Disconnected(
-        phase: Phase,
+        val phase: Phase,
         requests: Int,
     ) : Fm1UpdateError(
             if (phase ==

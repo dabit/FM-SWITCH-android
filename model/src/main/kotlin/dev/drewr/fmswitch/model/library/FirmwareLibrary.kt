@@ -94,6 +94,17 @@ class FirmwareLibrary(
 
     fun url(item: StoredFirmware) = if (item == builtIn) null else File(directory, item.fileName)
 
+    suspend fun loadPackage(item: StoredFirmware): FwscPackage =
+        withContext(ioDispatcher) {
+            val bytes =
+                if (item == builtIn) {
+                    bundledOfficial().use { it.readBytes() }
+                } else {
+                    requireNotNull(url(item)).readBytes()
+                }
+            FwscPackage(bytes)
+        }
+
     fun stored(entry: CatalogueEntry) =
         entry.sha256?.let { sha -> items.firstOrNull { it.sha256.equals(sha, true) } }
             ?: entry.packageURL?.let { address ->
