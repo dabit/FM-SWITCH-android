@@ -24,6 +24,7 @@ import java.util.concurrent.CopyOnWriteArrayList
 
 object MidiProbeRecorder {
     private const val LOG_TAG = "FM1Probe"
+    private const val SESSION_MILLIS = 2_000L
     private val mainHandler = Handler(Looper.getMainLooper())
     private val entries = CopyOnWriteArrayList<String>()
     private val listeners = CopyOnWriteArrayList<() -> Unit>()
@@ -95,6 +96,8 @@ object MidiProbeRecorder {
             input.send(Fm1Message.HANDSHAKE_QUERY, 0, Fm1Message.HANDSHAKE_QUERY.size)
             record("Sent handshake id=${deviceInfo.id} input=0")
             if (output == null) record("No output port to receive replies id=${deviceInfo.id}")
+            // Release the ports soon after, so the app itself can reach the FM-1 again.
+            mainHandler.postDelayed({ closeSession(deviceInfo.id, session, "after handshake") }, SESSION_MILLIS)
         } catch (error: IOException) {
             record("Handshake failed id=${deviceInfo.id}: ${error.message.orEmpty()}")
             closeSession(deviceInfo.id, "after handshake error")
@@ -212,6 +215,14 @@ object MidiProbeRecorder {
         reason: String,
     ) {
         sessions.remove(deviceId)?.let { session -> closeSession(session, deviceId, reason) }
+    }
+
+    private fun closeSession(
+        deviceId: Int,
+        expected: CloseableSession,
+        reason: String,
+    ) {
+        if (sessions.remove(deviceId, expected)) closeSession(expected, deviceId, reason)
     }
 
     private fun closeSession(

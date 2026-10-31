@@ -33,7 +33,7 @@
     <string name="installing_title">Installing %1$s</string>
     <string name="installing_step">Step %1$d of %2$d. Keep it plugged in.</string>
     <string name="installing_keep_plugged">Keep it plugged in. Nearly there.</string>
-    <string name="installing_keep_open">Your phone or tablet stays awake while this runs. If it stops for any reason, you can carry on where it left off.</string>
+    <string name="installing_keep_open">Your phone or tablet stays awake while this runs. Some phones pause the install while they\'re locked and carry on once unlocked. If it stops for any reason, you can carry on where it left off.</string>
     <string name="installing_accessibility_label">Installing</string>
     <plurals name="installing_percent">
         <item quantity="one">%1$d percent</item>

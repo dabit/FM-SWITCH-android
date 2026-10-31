@@ -42,6 +42,8 @@ fun ProbeScreen() {
     ) {
         Text("USB MIDI probe", style = MaterialTheme.typography.headlineSmall)
         Text("This sends one handshake only to matching devices. Copy the log after testing.")
+        val lastAnswer = log.lastOrNull { "identity=" in it }?.substringAfter("identity=")
+        Text("Last answer: ${lastAnswer ?: "none yet"}", style = MaterialTheme.typography.titleMedium)
         manager.devices.filter { PortMatching.isProbeable(MidiProbeRecorder.descriptor(it)) }.forEach { device ->
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text("Device ${device.id}: ${device.properties.getString(MidiDeviceInfo.PROPERTY_NAME).orEmpty()}")
