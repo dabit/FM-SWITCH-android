@@ -9,6 +9,7 @@
     <string name="welcome_settings_note">You\'ll find this again in Settings.</string>
     <string name="welcome_ok">OK</string>
     <string name="welcome_ok_countdown">OK (%1$d)</string>
+    <string name="back">Back</string>
     <string name="fm1_description">FM-1</string>
     <string name="fm1_screen_description">its screen says %1$s</string>
     <string name="fm1_lit_key_description">with its %1$s key lit</string>

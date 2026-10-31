@@ -1,5 +1,6 @@
 <!-- Ported from FM-SWITCH App/Standard/Home/HomeView.swift. -->
 <resources>
+    <string name="home_settings">Settings</string>
     <string name="home_change_firmware">Change firmware</string>
     <string name="home_firmwares_empty">Synths, grooveboxes and games, or the official one.</string>
     <plurals name="home_firmwares_count"><item quantity="one">%1$d firmware to try: synths, grooveboxes and games, or the official one.</item><item quantity="other">%1$d firmwares to try: synths, grooveboxes and games, or the official one.</item></plurals>

@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.toggleable
@@ -31,6 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
@@ -66,12 +69,24 @@ object SettingsScreen {
         val context = LocalContext.current
         val probe = remember(context) { nullableProbeIntent(context) }
         val connectionEnabled = job?.isRunning != true
+        val back = stringResource(R.string.back)
 
         Column(
             Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
-            Heading(stringResource(R.string.title_settings), MaterialTheme.typography.headlineLarge)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "←",
+                    Modifier
+                        .size(48.dp)
+                        .wrapContentSize(Alignment.Center)
+                        .clickable(role = Role.Button, onClick = navigator::back)
+                        .semantics { contentDescription = back },
+                    style = MaterialTheme.typography.headlineMedium,
+                )
+                Heading(stringResource(R.string.title_settings), MaterialTheme.typography.headlineLarge)
+            }
             SettingsSection(stringResource(R.string.settings_appearance)) {
                 Appearance.entries.forEach { value ->
                     ChoiceRow(appearanceName(value), appearance == value) { model.settings.appearance = value }

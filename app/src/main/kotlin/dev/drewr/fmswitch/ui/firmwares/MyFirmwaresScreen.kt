@@ -2,11 +2,14 @@
 package dev.drewr.fmswitch.ui.firmwares
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -19,8 +22,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -55,10 +61,23 @@ object MyFirmwaresScreen {
                 .sortedBy { it.name.lowercase() }
                 .map(CatalogueEntry::addedFrom)
         val entries = (listed + imported).distinctBy(CatalogueEntry::id)
+        val back = stringResource(R.string.back)
         Column(Modifier.background(LocalStandardColors.current.ground)) {
-            TopAppBar({
-                Text(stringResource(R.string.title_my_firmwares))
-            }, colors = TopAppBarDefaults.topAppBarColors(containerColor = LocalStandardColors.current.ground))
+            TopAppBar(
+                title = { Text(stringResource(R.string.title_my_firmwares)) },
+                navigationIcon = {
+                    Text(
+                        "←",
+                        Modifier
+                            .size(48.dp)
+                            .wrapContentSize(Alignment.Center)
+                            .clickable(role = Role.Button, onClick = navigator::back)
+                            .semantics { contentDescription = back },
+                        style = MaterialTheme.typography.headlineMedium,
+                    )
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = LocalStandardColors.current.ground),
+            )
             PullToRefreshBox(
                 isRefreshing = refreshing,
                 onRefresh = { scope.launch { model.catalogue.refresh() } },

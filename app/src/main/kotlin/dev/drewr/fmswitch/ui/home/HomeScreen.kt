@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -39,6 +40,7 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
@@ -80,15 +82,31 @@ object HomeScreen {
                     .orEmpty()
         }
         LaunchedEffect(Unit) { model.device.scan() }
+        val settings = stringResource(R.string.home_settings)
         Column(
             Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
-            Text(
-                stringResource(R.string.title_home),
-                Modifier.semantics { heading() },
-                style = MaterialTheme.typography.headlineLarge,
-            )
+            Row(
+                Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    stringResource(R.string.title_home),
+                    Modifier.weight(1f).semantics { heading() },
+                    style = MaterialTheme.typography.headlineLarge,
+                )
+                Text(
+                    "⚙",
+                    Modifier
+                        .size(48.dp)
+                        .wrapContentSize(Alignment.Center)
+                        .clickable(role = Role.Button, onClick = navigator::openSettings)
+                        .semantics { contentDescription = settings },
+                    color = LocalStandardColors.current.ink,
+                    style = MaterialTheme.typography.headlineMedium,
+                )
+            }
             Column(
                 Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally,

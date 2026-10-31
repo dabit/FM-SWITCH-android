@@ -15,6 +15,8 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -49,6 +51,7 @@ import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -87,6 +90,7 @@ object FirmwareListScreen {
         var selectedScopeKey by rememberSaveable { mutableStateOf("all") }
         val selectedScope = savedScope(selectedScopeKey)
         val configuredOrder = model.settings.firmwareOrder
+        val back = stringResource(R.string.back)
         var order by remember { mutableStateOf(configuredOrder) }
         LaunchedEffect(configuredOrder) { order = configuredOrder }
         val savedCatalogueIds = saved.mapNotNull { it.catalogueID }
@@ -153,6 +157,17 @@ object FirmwareListScreen {
         Column(Modifier.background(LocalStandardColors.current.ground)) {
             TopAppBar(
                 title = { Text(stringResource(R.string.title_firmwares)) },
+                navigationIcon = {
+                    Text(
+                        "←",
+                        Modifier
+                            .size(48.dp)
+                            .wrapContentSize(Alignment.Center)
+                            .clickable(role = Role.Button, onClick = navigator::back)
+                            .semantics { contentDescription = back },
+                        style = MaterialTheme.typography.headlineMedium,
+                    )
+                },
                 actions = {
                     Text(
                         stringResource(R.string.firmware_add_file),

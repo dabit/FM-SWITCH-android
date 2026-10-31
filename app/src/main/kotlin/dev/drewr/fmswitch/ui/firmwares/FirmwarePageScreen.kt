@@ -4,12 +4,14 @@ package dev.drewr.fmswitch.ui.firmwares
 import android.content.ActivityNotFoundException
 import androidx.browser.customtabs.CustomTabsIntent
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -24,6 +26,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -87,6 +90,7 @@ object FirmwarePageScreen {
         val isDownloading = download?.isDownloading == true
         val errorMessage = download?.errorMessage ?: linkError
         val linkUnavailable = stringResource(R.string.firmware_link_unavailable)
+        val back = stringResource(R.string.back)
         val disabled = entry.needsBuildChoice && stored == null
         Column(Modifier.background(LocalStandardColors.current.ground).verticalScroll(rememberScrollState())) {
             Column(
@@ -97,6 +101,18 @@ object FirmwarePageScreen {
                             .Color(badge.strongerHalf.toLong() or 0xFF000000),
                     ).padding(20.dp),
             ) {
+                Text(
+                    "←",
+                    Modifier
+                        .size(48.dp)
+                        .wrapContentSize(Alignment.Center)
+                        .clickable(role = Role.Button, onClick = navigator::back)
+                        .semantics { contentDescription = back },
+                    style = MaterialTheme.typography.headlineMedium,
+                    color =
+                        androidx.compose.ui.graphics
+                            .Color(badge.ink.toLong() or 0xFF000000),
+                )
                 Text(
                     entry.name.ifBlank { stringResource(R.string.title_firmware) },
                     style = MaterialTheme.typography.headlineLarge,
