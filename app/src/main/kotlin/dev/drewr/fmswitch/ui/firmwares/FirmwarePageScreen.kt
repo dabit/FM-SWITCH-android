@@ -2,13 +2,19 @@
 package dev.drewr.fmswitch.ui.firmwares
 
 import android.content.ActivityNotFoundException
+import android.content.Intent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.browser.customtabs.CustomTabsIntent
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentSize
@@ -28,10 +34,14 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
@@ -54,7 +64,9 @@ import dev.drewr.fmswitch.ui.components.SecondaryButton
 import dev.drewr.fmswitch.ui.navigation.AppNavigator
 import dev.drewr.fmswitch.ui.theme.LocalStandardColors
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.text.DateFormat
 import java.util.Date
 
@@ -223,6 +235,9 @@ object FirmwarePageScreen {
                                 }
                             }) { Text(stringResource(R.string.firmware_remove)) }
                         }
+                        model.library.url(stored)?.let { file ->
+                            SaveACopy(file) { linkError = it }
+                        }
                     }
                     if (stored == null && identity == null) {
                         Text(
@@ -238,15 +253,13 @@ object FirmwarePageScreen {
                 }
                 errorMessage?.let { Warning(it) }
                 entry.pageLinks().forEach { link ->
-                    TextButton(
-                        {
-                            try {
-                                CustomTabsIntent.Builder().build().launchUrl(context, link.url.toUri())
-                            } catch (_: ActivityNotFoundException) {
-                                linkError = linkUnavailable
-                            }
-                        },
-                    ) { Text("${link.displayLabel()} ↗") }
+                    PageLink("${link.displayLabel()} ↗", link.url) {
+                        try {
+                            CustomTabsIntent.Builder().build().launchUrl(context, link.url.toUri())
+                        } catch (_: ActivityNotFoundException) {
+                            linkError = linkUnavailable
+                        }
+                    }
                 }
                 Details(entry, stored, detailsExpanded) { detailsExpanded = !detailsExpanded }
             }
@@ -309,8 +322,9 @@ private fun Details(
             )
         }
         if (entry.kinds.isNotEmpty()) Detail(stringResource(R.string.firmware_kind), entry.kinds.joinToString())
-        Detail(stringResource(R.string.firmware_recovery), entry.recoverySummary())
         entry.licence?.let { Detail(stringResource(R.string.firmware_licence), it) }
+        entry.stars?.let { Detail(stringResource(R.string.firmware_github_stars), it.toString()) }
+        Detail(stringResource(R.string.firmware_recovery), entry.recoverySummary())
         Detail(stringResource(R.string.firmware_listed_on), entry.listedOn)
         if (!entry.isFromFile) {
             Detail(
@@ -392,3 +406,68 @@ private fun CatalogueEntry.recoverySummary() =
     label: String,
     value: String,
 ) = Text("$label: $value", color = LocalStandardColors.current.secondaryInk, style = MaterialTheme.typography.bodySmall)
+
+/** A link: tapping opens it, and pressing and holding shares it, as on iPhone. */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun PageLink(
+    label: String,
+    url: String,
+    onOpen: () -> Unit,
+) {
+    val context = LocalContext.current
+    val haptics = LocalHapticFeedback.current
+    val shareLabel = stringResource(R.string.firmware_share_link)
+    val share = {
+        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+        val send =
+            Intent(Intent.ACTION_SEND)
+                .setType("text/plain")
+                .putExtra(Intent.EXTRA_TEXT, url)
+        context.startActivity(Intent.createChooser(send, null))
+    }
+    Text(
+        label,
+        Modifier
+            .heightIn(min = 48.dp)
+            .combinedClickable(role = Role.Button, onClick = onOpen, onLongClick = share)
+            .semantics {
+                customActions =
+                    listOf(
+                        CustomAccessibilityAction(shareLabel) {
+                            share()
+                            true
+                        },
+                    )
+            }.padding(horizontal = 12.dp, vertical = 12.dp),
+        color = MaterialTheme.colorScheme.primary,
+        style = MaterialTheme.typography.labelLarge,
+    )
+}
+
+/** Copies a saved firmware to wherever the person picks, so it can be kept or shared. */
+@Composable
+private fun SaveACopy(
+    file: java.io.File,
+    onError: (String?) -> Unit,
+) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val failed = stringResource(R.string.firmware_copy_failed)
+    val saveTo =
+        rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/octet-stream")) { uri ->
+            uri ?: return@rememberLauncherForActivityResult
+            scope.launch {
+                val copied =
+                    withContext(Dispatchers.IO) {
+                        runCatching {
+                            context.contentResolver.openOutputStream(uri)?.use { out ->
+                                file.inputStream().use { it.copyTo(out) }
+                            } ?: error("no stream")
+                        }.isSuccess
+                    }
+                onError(if (copied) null else failed)
+            }
+        }
+    TextButton({ saveTo.launch(file.name) }) { Text(stringResource(R.string.firmware_save_copy)) }
+}

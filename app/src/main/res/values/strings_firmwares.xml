@@ -35,7 +35,7 @@
     <string name="firmware_saved_date">Saved</string><string name="firmware_kind">Kind</string><string name="firmware_built_from_source">Built from source</string><string name="firmware_file_from">File from</string>
     <string name="firmware_installs">Installs</string><string name="firmware_installs_official">From the official firmware, which goes on first</string>
     <string name="firmware_known_downloaded">Known once downloaded</string><string name="firmware_size">Size</string>
-    <string name="firmware_released">Released</string><string name="firmware_licence">Licence</string>
+    <string name="firmware_released">Released</string><string name="firmware_licence">Licence</string><string name="firmware_github_stars">GitHub stars</string><string name="firmware_share_link">Share</string><string name="firmware_save_copy">Save a copy to your files</string><string name="firmware_copy_failed">Couldn\'t save the copy. Try another place.</string>
     <string name="firmware_recovery">Recovery</string>
     <string name="firmware_not_known">Not known</string>
     <string name="firmware_recovery_octave_down">Hold OCT− while switching on</string>

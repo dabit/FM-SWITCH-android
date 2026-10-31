@@ -119,4 +119,56 @@ class StandardLookTest {
             DeviceSummary.resolvedName(dev.drewr.fm1.protocol.Fm1Identity.officialV15),
         )
     }
+
+    @Test
+    fun theHomeScreenNamesTheFirmwareFromHistoryThenTheList() {
+        val identity =
+            dev.drewr.fm1.protocol.Fm1Identity
+                .parse("FM-1_901")!!
+        val history =
+            dev.drewr.fmswitch.model.history.FlashHistory(null, kotlinx.coroutines.Dispatchers.Unconfined) {
+                Instant.EPOCH
+            }
+        val listed =
+            listOf(
+                dev.drewr.fmswitch.model.catalogue
+                    .CatalogueEntry("a", "Listed", version = "3", product = "FM-1_901"),
+            )
+        assertEquals("Connected, running Listed 3", DeviceSummary.from(identity, history, listed).statusLine)
+        kotlinx.coroutines.runBlocking { history.record(item) }
+        assertEquals("Connected, running One 1", DeviceSummary.from(identity, history, listed).statusLine)
+        assertEquals(
+            "Connected, reporting FM-1_901",
+            DeviceSummary
+                .from(
+                    identity,
+                    dev.drewr.fmswitch.model.history.FlashHistory(null, kotlinx.coroutines.Dispatchers.Unconfined) {
+                        Instant.EPOCH
+                    },
+                    listed + listed.single().copy(id = "b", name = "Other"),
+                ).statusLine,
+        )
+    }
+
+    @Test
+    fun onlyOneFirmwareIsMarkedAsOnTheFm1() {
+        val identity =
+            dev.drewr.fm1.protocol.Fm1Identity
+                .parse("FM-1_901")!!
+        val history =
+            dev.drewr.fmswitch.model.history.FlashHistory(null, kotlinx.coroutines.Dispatchers.Unconfined) {
+                Instant.EPOCH
+            }
+        val a =
+            dev.drewr.fmswitch.model.catalogue
+                .CatalogueEntry("a", "One", product = "FM-1_901")
+        val b = a.copy(id = "b", name = "Two")
+        assertTrue(DeviceSummary.isOnFm1(a, identity, history, listOf(a)))
+        assertEquals(false, DeviceSummary.isOnFm1(a, identity, history, listOf(a, b)))
+        assertEquals(false, DeviceSummary.isOnFm1(b, identity, history, listOf(a, b)))
+        kotlinx.coroutines.runBlocking { history.record(item) }
+        assertTrue(DeviceSummary.isOnFm1(a, identity, history, listOf(a, b)))
+        assertEquals(false, DeviceSummary.isOnFm1(b, identity, history, listOf(a, b)))
+        assertEquals(false, DeviceSummary.isOnFm1(a, null, history, listOf(a)))
+    }
 }

@@ -64,6 +64,7 @@ import dev.drewr.fmswitch.model.catalogue.FirmwareFilter
 import dev.drewr.fmswitch.model.catalogue.FirmwareOrder
 import dev.drewr.fmswitch.model.catalogue.FirmwareScope
 import dev.drewr.fmswitch.model.catalogue.isFromFile
+import dev.drewr.fmswitch.model.device.DeviceSummary
 import dev.drewr.fmswitch.model.library.StoredFirmware
 import dev.drewr.fmswitch.ui.navigation.AppNavigator
 import dev.drewr.fmswitch.ui.theme.LocalReduceMotion
@@ -373,9 +374,9 @@ internal fun FirmwareCard(
 ) {
     val model = LocalAppModel.current
     val identity by model.device.identity.collectAsState()
+    val catalogue by model.catalogue.catalogueFlow.collectAsState()
     val colors = LocalStandardColors.current
-    val deviceIdentity = identity
-    val isOnDevice = deviceIdentity != null && deviceIdentity.text == entry.product
+    val isOnDevice = DeviceSummary.isOnFm1(entry, identity, model.history, catalogue?.entries.orEmpty())
     val isSaved = model.library.stored(entry) != null || model.library.otherBuild(entry) != null
     Row(
         Modifier

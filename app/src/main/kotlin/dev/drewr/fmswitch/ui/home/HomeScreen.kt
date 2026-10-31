@@ -23,14 +23,17 @@ import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -58,8 +61,10 @@ import dev.drewr.fmswitch.ui.navigation.AppNavigator
 import dev.drewr.fmswitch.ui.theme.LocalReduceMotion
 import dev.drewr.fmswitch.ui.theme.LocalStandardColors
 import dev.drewr.fmswitch.ui.theme.Motion
+import kotlinx.coroutines.launch
 
 object HomeScreen {
+    @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     operator fun invoke(navigator: AppNavigator) {
         val model = LocalAppModel.current
@@ -67,7 +72,9 @@ object HomeScreen {
         val error by model.device.transportError.collectAsState()
         val catalogue by model.catalogue.catalogueFlow.collectAsState()
         val saved by model.library.itemsFlow.collectAsState()
-        val summary = DeviceSummary.from(identity)
+        val summary = DeviceSummary.from(identity, model.history, catalogue?.entries.orEmpty())
+        val scope = rememberCoroutineScope()
+        var rescanning by remember { mutableStateOf(false) }
         val savedCount =
             catalogue?.entries.orEmpty().count {
                 model.library.stored(it) != null || model.library.otherBuild(it) != null
@@ -83,61 +90,75 @@ object HomeScreen {
         }
         LaunchedEffect(Unit) { model.device.scan() }
         val settings = stringResource(R.string.home_settings)
-        Column(
-            Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(18.dp),
+        PullToRefreshBox(
+            isRefreshing = rescanning,
+            onRefresh = {
+                scope.launch {
+                    rescanning = true
+                    try {
+                        model.device.scan()
+                    } finally {
+                        rescanning = false
+                    }
+                }
+            },
         ) {
-            Row(
-                Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    stringResource(R.string.title_home),
-                    Modifier.weight(1f).semantics { heading() },
-                    style = MaterialTheme.typography.headlineLarge,
-                )
-                Text(
-                    "⚙",
-                    Modifier
-                        .size(48.dp)
-                        .wrapContentSize(Alignment.Center)
-                        .clickable(role = Role.Button, onClick = navigator::openSettings)
-                        .semantics { contentDescription = settings },
-                    color = LocalStandardColors.current.ink,
-                    style = MaterialTheme.typography.headlineMedium,
-                )
-            }
             Column(
-                Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+                Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(18.dp),
             ) {
-                FM1Drawing(summary.screenTitle, line2 = summary.screenLine)
-                AnimatedStatusPill(summary.statusLine, summary.state !is DeviceSummary.State.NotConnected)
-            }
-            ChangeFirmwareCard(
-                FirmwareFilter()
-                    .visible(
-                        catalogue?.entries.orEmpty(),
-                        model.settings.showBeta,
-                        model.settings.showLinksOnly,
-                        saved.map { it.id },
-                    ).size,
-                navigator::openFirmwares,
-            )
-            TaskCard(
-                stringResource(R.string.home_my_firmwares),
-                pluralStringResource(
-                    R.plurals.home_saved_count,
-                    savedCount,
-                    savedCount,
-                ),
-                navigator::openMyFirmwares,
-            )
-            if (summary.state is DeviceSummary.State.Waiting) FinishCard(finishers, navigator)
-            if (summary.state is DeviceSummary.State.NotConnected) {
-                ConnectCard(error) {
-                    model.device.configure(model.settings.transportKind)
+                Row(
+                    Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        stringResource(R.string.title_home),
+                        Modifier.weight(1f).semantics { heading() },
+                        style = MaterialTheme.typography.headlineLarge,
+                    )
+                    Text(
+                        "⚙",
+                        Modifier
+                            .size(48.dp)
+                            .wrapContentSize(Alignment.Center)
+                            .clickable(role = Role.Button, onClick = navigator::openSettings)
+                            .semantics { contentDescription = settings },
+                        color = LocalStandardColors.current.ink,
+                        style = MaterialTheme.typography.headlineMedium,
+                    )
+                }
+                Column(
+                    Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    FM1Drawing(summary.screenTitle, line2 = summary.screenLine)
+                    AnimatedStatusPill(summary.statusLine, summary.state !is DeviceSummary.State.NotConnected)
+                }
+                ChangeFirmwareCard(
+                    FirmwareFilter()
+                        .visible(
+                            catalogue?.entries.orEmpty(),
+                            model.settings.showBeta,
+                            model.settings.showLinksOnly,
+                            saved.map { it.id },
+                        ).size,
+                    navigator::openFirmwares,
+                )
+                TaskCard(
+                    stringResource(R.string.home_my_firmwares),
+                    pluralStringResource(
+                        R.plurals.home_saved_count,
+                        savedCount,
+                        savedCount,
+                    ),
+                    navigator::openMyFirmwares,
+                )
+                if (summary.state is DeviceSummary.State.Waiting) FinishCard(finishers, navigator)
+                if (summary.state is DeviceSummary.State.NotConnected) {
+                    ConnectCard(error) {
+                        model.device.configure(model.settings.transportKind)
+                    }
                 }
             }
         }

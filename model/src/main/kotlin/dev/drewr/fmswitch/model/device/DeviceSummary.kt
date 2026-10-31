@@ -2,6 +2,8 @@
 package dev.drewr.fmswitch.model.device
 
 import dev.drewr.fm1.protocol.Fm1Identity
+import dev.drewr.fmswitch.model.catalogue.CatalogueEntry
+import dev.drewr.fmswitch.model.history.FlashHistory
 
 data class DeviceSummary(
     val state: State,
@@ -75,6 +77,39 @@ data class DeviceSummary(
                 } else {
                     null
                 }
+
+        /** Names what the FM-1 runs from what this app installed last, or the firmware list. */
+        fun from(
+            identity: Fm1Identity?,
+            history: FlashHistory,
+            entries: List<CatalogueEntry>,
+        ): DeviceSummary {
+            if (identity == null || identity.isLoader) return from(identity)
+            val name =
+                resolvedName(
+                    identity,
+                    history.lastInstall(identity.text)?.let { it.name to it.version },
+                    entries.filter { it.product == identity.text }.map { it.name to it.version },
+                )
+            return from(identity, name)
+        }
+
+        /**
+         * Whether the FM-1 is running this entry, as far as anyone can tell: it reports this
+         * firmware's identity, and either this app installed it or no other listed firmware
+         * reports the same.
+         */
+        fun isOnFm1(
+            entry: CatalogueEntry,
+            identity: Fm1Identity?,
+            history: FlashHistory,
+            entries: List<CatalogueEntry>,
+        ): Boolean {
+            val text = identity?.text ?: return false
+            if (text != entry.product) return false
+            history.lastInstall(text)?.let { return it.name == entry.name }
+            return entries.count { it.product == text } == 1
+        }
 
         fun from(
             identity: Fm1Identity?,

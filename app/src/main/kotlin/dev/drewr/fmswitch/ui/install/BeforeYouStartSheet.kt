@@ -31,6 +31,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -260,8 +262,15 @@ private fun StartUpRow(
     onClick: () -> Unit,
 ) {
     val colors = LocalStandardColors.current
+    val haptics = LocalHapticFeedback.current
     Row(
-        Modifier.fillMaxWidth().selectable(selected, role = Role.RadioButton, onClick = onClick).padding(16.dp),
+        Modifier
+            .fillMaxWidth()
+            .selectable(selected, role = Role.RadioButton, onClick = {
+                if (!selected) haptics.performHapticFeedback(HapticFeedbackType.SegmentTick)
+                onClick()
+            })
+            .padding(16.dp),
         verticalAlignment = Alignment.Top,
     ) {
         Text(if (selected) "◉" else "○", color = if (selected) colors.firmwaresTint else colors.secondaryInk)
@@ -378,10 +387,14 @@ private fun CheckRow(
 ) {
     val colors = LocalStandardColors.current
     val state = stringResource(if (checked) R.string.before_start_checked else R.string.before_start_not_checked)
+    val haptics = LocalHapticFeedback.current
     Row(
         Modifier
             .fillMaxWidth()
-            .toggleable(checked, role = Role.Checkbox, onValueChange = onChange)
+            .toggleable(checked, role = Role.Checkbox, onValueChange = {
+                haptics.performHapticFeedback(if (it) HapticFeedbackType.ToggleOn else HapticFeedbackType.ToggleOff)
+                onChange(it)
+            })
             .semantics { stateDescription = state }
             .padding(16.dp),
         verticalAlignment = Alignment.Top,
