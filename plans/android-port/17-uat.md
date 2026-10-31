@@ -166,7 +166,7 @@ Setup (once): `cd /home/dabit/git/FM-SWITCH-android; export JAVA_HOME="$(mise wh
     control: `printf 'getDevicesForTransport\n' | grep -c getDevicesForTransport` → `1`.
     at base: none — written by tasks 10 and 11.
 22. `git log --oneline aa665298b155bf1505c95502cfa72440e0ac0da1..HEAD` — expected: one commit per task 01–16 (plus the
-    plan-folder commits), each subject naming its task.
+    plan-folder commits), each subject describing its task's work (subjects don't carry task numbers).
     red when: a task's work is missing from the branch or two tasks' work landed in one commit.
 23. **U0 — simulated walkthrough (human; emulator or any phone, no FM-1).** If no phone: create an AVD from
     `system-images;android-37.2;google_apis_playstore_ps16k;x86_64` with `avdmanager`, boot it, install
@@ -194,5 +194,5 @@ Setup (once): `cd /home/dabit/git/FM-SWITCH-android; export JAVA_HOME="$(mise wh
     service" line). red when: the install stalls in the background, or the service failed to start.
 28. Last — the project's gate, verbatim, in the committed tree with no JDK or SDK exported:
     `(cd "$W" && env -u JAVA_HOME -u ANDROID_HOME scripts/check.sh)` — expected: the `lint`, `build` and `test` groups run
-    and the last line is `Checks passed: lint build test.`; exit 0.
+    and the last line is `Checks passed: lint build test`; exit 0.
     red when: any group fails or warns on the branch as committed.

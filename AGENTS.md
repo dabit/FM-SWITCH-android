@@ -60,8 +60,8 @@ tests, mirroring FM1Kit's split: package, protocol, transport, updater.
   served ranges, not the last address.
 - **Confirmations follow `PLAN.md`:** in the Standard look, switching firmware requires the
   "I've saved anything I want to keep" tick; the same identity is an information notice and
-  its install passes `confirmsSameIdentity`. "SWITCH FIRMWARE?" and "REINSTALL OR UPDATE?" are
-  Retro confirmations.
+  its install passes `confirmsSameIdentity`.
+  "SWITCH FIRMWARE?" and "REINSTALL OR UPDATE?" are Retro confirmations.
   Refuse V15 over V15. Installing over Open firmware needs an arming command first.
 
 **Firmware list.** Download `https://fm-1.drewr.dev/firmwares.json` (built daily by the iOS
