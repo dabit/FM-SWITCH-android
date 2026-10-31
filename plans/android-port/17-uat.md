@@ -196,3 +196,20 @@ Setup (once): `cd /home/dabit/git/FM-SWITCH-android; export JAVA_HOME="$(mise wh
     `(cd "$W" && env -u JAVA_HOME -u ANDROID_HOME scripts/check.sh)` — expected: the `lint`, `build` and `test` groups run
     and the last line is `Checks passed: lint build test`; exit 0.
     red when: any group fails or warns on the branch as committed.
+
+## Results so far (2026-10-30, orchestrator)
+
+- Automated steps 1–22 and 28: all pass at `ed9421c` (steps 19, 22 and 28 failed first on wording; 19 was fixed in
+  AGENTS.md, 22 and 28 were corrected in this file).
+- U0, partly, on a headless API 37 emulator (`fmswitch-smoke` AVD), debug build. Each of these worked:
+  - welcome notice → Home;
+  - the firmware list loads (219 entries);
+  - Settings → Simulated FM-1 (its toggles appear at once);
+  - Home shows "Connected, reporting FM-1_900";
+  - V15 page → Before you start (three ticks) → Installing → "FM-1 V15 is ready to play".
+
+  `FlashService` ran in the foreground with type `connectedDevice` (0x10) and stopped after Done. No crash-buffer
+  entries. The walkthrough found that Settings couldn't be reached on a phone; fixed in `1e67192`.
+- Still to do, with a phone and an FM-1: U1 probe, U2 install, U3 resume after pulling the cable, U4 install with the
+  screen off or the app in the background. Also the rest of U0, by hand: the cable-pull resume and the refusal paths in
+  the simulator, TalkBack, and dark mode.
