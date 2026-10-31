@@ -1,4 +1,4 @@
-status: pending
+status: done
 # 08 — `:model` data layer: published list, catalogue cache, firmware library, settings, history, start-up
 
 Depends on: 05
