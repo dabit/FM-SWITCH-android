@@ -210,6 +210,27 @@ Setup (once): `cd /home/dabit/git/FM-SWITCH-android; export JAVA_HOME="$(mise wh
 
   `FlashService` ran in the foreground with type `connectedDevice` (0x10) and stopped after Done. No crash-buffer
   entries. The walkthrough found that Settings couldn't be reached on a phone; fixed in `1e67192`.
-- Still to do, with a phone and an FM-1: U1 probe, U2 install, U3 resume after pulling the cable, U4 install with the
-  screen off or the app in the background. Also the rest of U0, by hand: the cable-pull resume and the refusal paths in
+- U1 and U2 on real hardware (2026-10-31): Samsung SM-F971B, Android 17 (API 37), debug build over wireless adb; the
+  FM-1 was running Felucca. The owner backed it up with Felucca's web editor first.
+  - U1, the probe:
+    - The FM-1 enumerates as USB `1209:0001` ("Hügelton Instruments Felucca"), not M-VAVE's `4c4a:c755`.
+    - Its ports have empty names (`0:input:`, `0:output:`), so it is matched only by the device name containing
+      "felucca".
+    - No USB permission dialog appeared; the phone had seen this FM-1 before.
+    - Seven handshakes each returned identity `FM-1_900`. One reply arrived in two parts (21 + 20 bytes) and was
+      reassembled.
+  - U2, the install: Felucca 1.7.0 went over the running Felucca and reached "Felucca is ready to play", reporting
+    `FM-1_917`. It took about 45 s.
+    - Before you start showed the switch confirmation (the backup tick) and no start-up question.
+    - The loader reboot was a remove and an add: the device became "Hügelton Instruments Felucca Update", then
+      "Felucca" again, with a new MIDI device id at each step.
+    - Step 25's "Show the details" exists only on the problem screen, in both the iOS app and this port, so the device
+      lines were read from logcat (`FM1Midi`) instead. Step 25's wording is wrong, not the app.
+  - Bugs found and fixed:
+    - `8b58b4b`: the app rescanned on every MIDI status change. Its own handshake caused those changes, so it sent
+      about ten handshakes a second.
+    - Not fixed: the debug probe screen keeps its session open after a handshake, which leaves Home "Not connected"
+      until the app restarts. It affects debug builds only.
+- Still to do, with a phone and an FM-1: U3 resume after pulling the cable, U4 install with the screen off or the app in
+  the background. Also the rest of U0, by hand: the cable-pull resume and the refusal paths in
   the simulator, TalkBack, and dark mode.
