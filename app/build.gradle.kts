@@ -1,7 +1,17 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
 }
+
+// The release key lives outside the repo. Point FMSWITCH_SIGNING at its properties file
+// (storeFile, storePassword, keyAlias, keyPassword); without it, release builds stay unsigned.
+val releaseSigning =
+    (System.getenv("FMSWITCH_SIGNING") ?: "${System.getProperty("user.home")}/.android/fmswitch-release.properties")
+        .let(::file)
+        .takeIf { it.isFile }
+        ?.let { file -> Properties().apply { file.inputStream().use(::load) } }
 
 android {
     namespace = "dev.drewr.fmswitch"
@@ -13,6 +23,23 @@ android {
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
+    }
+
+    signingConfigs {
+        if (releaseSigning != null) {
+            create("release") {
+                storeFile = file(releaseSigning.getProperty("storeFile"))
+                storePassword = releaseSigning.getProperty("storePassword")
+                keyAlias = releaseSigning.getProperty("keyAlias")
+                keyPassword = releaseSigning.getProperty("keyPassword")
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            signingConfigs.findByName("release")?.let { signingConfig = it }
+        }
     }
 
     buildFeatures {
