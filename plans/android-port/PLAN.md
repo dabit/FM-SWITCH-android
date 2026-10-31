@@ -870,7 +870,7 @@ document's, not part of the bytes. Generated 2026-10-30 by a Python implementati
 **Wave 2** — run together
 - [x] 02 — Licence notices and the bundled V15 (depends on: 01)
 - [x] 03 — `:fm1` protocol, framing and inbox (depends on: 01)
-- [ ] 04 — UI foundations: theme, drawing, navigation, welcome notice and route placeholders (depends on: 01)
+- [x] 04 — UI foundations: theme, drawing, navigation, welcome notice and route placeholders (depends on: 01)
 
 **Wave 3** — run together
 - [x] 05 — `:fm1` package checks (depends on: 02, 03)

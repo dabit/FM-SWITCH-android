@@ -1,4 +1,4 @@
-status: pending
+status: done
 # 04 — UI foundations: theme, drawing, navigation, welcome notice and route placeholders
 
 Depends on: 01

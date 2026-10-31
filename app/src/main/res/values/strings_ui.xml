@@ -1,0 +1,21 @@
+<!-- Ported from FM-SWITCH App/Standard/Home/WelcomeNoticeView.swift and App/Views/SafetyNoticeView.swift. -->
+<resources>
+    <string name="welcome_screen_line_one">HELLO</string>
+    <string name="welcome_screen_line_two">Nice to meet you</string>
+    <string name="welcome_title">Welcome to FM-SWITCH</string>
+    <string name="before_you_start">Before you start</string>
+    <string name="safety_notice_text">Not affiliated with M-Vave. Though this utility makes every attempt to correctly reset and safely flash your device, flashing custom firmware is at your own risk.</string>
+    <string name="safety_notice_recovery">If your FM-1 won\'t start, some firmwares can start it in USB recovery mode if you hold down the “OCT−” key while switching it on. Then connect it and install a firmware you\'ve saved. Not every firmware does this, and if yours doesn\'t, recovery needs a computer: the app\'s settings say more.</string>
+    <string name="welcome_settings_note">You\'ll find this again in Settings.</string>
+    <string name="welcome_ok">OK</string>
+    <string name="welcome_ok_countdown">OK (%1$d)</string>
+    <string name="fm1_description">FM-1</string>
+    <string name="fm1_screen_description">its screen says %1$s</string>
+    <string name="fm1_lit_key_description">with its %1$s key lit</string>
+    <string name="title_home">My FM-1</string>
+    <string name="title_firmwares">Firmwares</string>
+    <string name="title_firmware">Firmware</string>
+    <string name="title_my_firmwares">My firmwares</string>
+    <string name="title_settings">Settings</string>
+    <string name="title_outcome">Outcome</string>
+</resources>
