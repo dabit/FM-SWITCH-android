@@ -1,4 +1,4 @@
-status: pending
+status: done
 # 10 — `:app` platform adapters: Android MIDI transport, HTTP fetch, DataStore settings
 
 Depends on: 07, 08
