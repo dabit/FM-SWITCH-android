@@ -879,7 +879,7 @@ document's, not part of the bytes. Generated 2026-10-30 by a Python implementati
 - [ ] 08 — `:model` data layer: published list, catalogue cache, firmware library, settings, history, start-up (depends on: 05)
 
 **Wave 5** — run together
-- [ ] 09 — `:fm1` updater (depends on: 07)
+- [x] 09 — `:fm1` updater (depends on: 07)
 - [ ] 10 — `:app` platform adapters: Android MIDI transport, HTTP fetch, DataStore settings (depends on: 07, 08)
 - [ ] 11 — Hardware probe screen (debug builds only) (depends on: 07)
 

@@ -1,4 +1,4 @@
-status: pending
+status: done
 # 09 — `:fm1` updater
 
 Depends on: 07
