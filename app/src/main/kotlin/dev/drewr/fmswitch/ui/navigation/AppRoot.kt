@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -18,6 +20,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import dev.drewr.fmswitch.LocalAppModel
+import dev.drewr.fmswitch.RequestedPage
 import dev.drewr.fmswitch.ui.firmwares.FirmwareListScreen
 import dev.drewr.fmswitch.ui.firmwares.FirmwarePageScreen
 import dev.drewr.fmswitch.ui.firmwares.MyFirmwaresScreen
@@ -27,15 +31,18 @@ import dev.drewr.fmswitch.ui.install.InstallingOverlay
 import dev.drewr.fmswitch.ui.install.OutcomeScreens
 import dev.drewr.fmswitch.ui.settings.SettingsScreen
 import dev.drewr.fmswitch.ui.theme.LocalStandardColors
+import dev.drewr.fmswitch.ui.welcome.SAFETY_NOTICE_VERSION
 import dev.drewr.fmswitch.ui.welcome.WelcomeNotice
 
 @Composable
-fun AppRoot(
-    showWelcomeNotice: Boolean = true,
-    onWelcomeOk: () -> Unit = {},
-) {
+fun AppRoot() {
+    val model = LocalAppModel.current
+    val job by model.device.job.collectAsState()
+    val requestedPage by model.requestedPage.collectAsState()
     val navController = rememberNavController()
-    var welcomeVisible by rememberSaveable(showWelcomeNotice) { mutableStateOf(showWelcomeNotice) }
+    var welcomeVisible by rememberSaveable {
+        mutableStateOf(model.settings.acknowledgedNoticeVersion < SAFETY_NOTICE_VERSION)
+    }
     val navigator =
         remember(navController) {
             object : AppNavigator {
@@ -70,6 +77,14 @@ fun AppRoot(
                 }
             }
         }
+    LaunchedEffect(requestedPage) {
+        when (val page = requestedPage) {
+            is RequestedPage.Firmware -> navigator.openFirmware(page.id)
+            RequestedPage.Settings -> navigator.openSettings()
+            null -> return@LaunchedEffect
+        }
+        model.clearRequestedPage()
+    }
     Box(Modifier.fillMaxSize()) {
         Surface(color = LocalStandardColors.current.ground, modifier = Modifier.fillMaxSize()) {
             Box(Modifier.safeDrawingPadding()) {
@@ -99,11 +114,11 @@ fun AppRoot(
                 }
             }
         }
-        InstallingOverlay()
+        if (job != null) InstallingOverlay()
         if (welcomeVisible) {
             WelcomeNotice(onOk = {
                 welcomeVisible = false
-                onWelcomeOk()
+                model.settings.acknowledgedNoticeVersion = SAFETY_NOTICE_VERSION
             })
         }
     }

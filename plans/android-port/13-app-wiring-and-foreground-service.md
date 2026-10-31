@@ -1,4 +1,4 @@
-status: pending
+status: done
 # 13 — App wiring and the foreground service
 
 Depends on: 04, 10, 12

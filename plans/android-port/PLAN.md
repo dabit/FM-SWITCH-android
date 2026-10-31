@@ -889,7 +889,7 @@ document's, not part of the bytes. Generated 2026-10-30 by a Python implementati
 - [x] 12 — `:model` device and install state (depends on: 08, 09)
 
 **Wave 7**
-- [ ] 13 — App wiring and the foreground service (depends on: 04, 10, 12)
+- [x] 13 — App wiring and the foreground service (depends on: 04, 10, 12)
 
 **Wave 8** — run together
 - [ ] 14 — Home, Settings and About (depends on: 13)

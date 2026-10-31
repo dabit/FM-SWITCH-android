@@ -17,19 +17,24 @@ import dev.drewr.fmswitch.model.settings.TransportKind
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 private val Context.appSettingsDataStore by preferencesDataStore(name = "app-settings")
 
-class DataStoreAppSettings(
+class DataStoreAppSettings private constructor(
     private val dataStore: androidx.datastore.core.DataStore<Preferences>,
     initialValues: Preferences,
     scope: CoroutineScope,
 ) : AppSettings {
     @Volatile
     private var values: Preferences = initialValues
+    private val mutableAppearance = MutableStateFlow(appearanceFrom(initialValues))
+    val appearanceFlow: StateFlow<Appearance> = mutableAppearance.asStateFlow()
     private val writes = Channel<(MutablePreferences) -> Unit>(Channel.UNLIMITED)
 
     init {
@@ -41,8 +46,11 @@ class DataStoreAppSettings(
     }
 
     override var appearance: Appearance
-        get() = Appearance.entries.firstOrNull { it.name == values[APPEARANCE] } ?: Appearance.System
-        set(value) = save(APPEARANCE, value.name)
+        get() = appearanceFlow.value
+        set(value) {
+            mutableAppearance.value = value
+            save(APPEARANCE, value.name)
+        }
 
     override var transportKind: TransportKind
         get() = TransportKind.entries.firstOrNull { it.name == values[TRANSPORT_KIND] } ?: TransportKind.UsbMidi
@@ -117,7 +125,7 @@ class DataStoreAppSettings(
         }
     }
 
-    private companion object {
+    companion object {
         val APPEARANCE = stringPreferencesKey("appearance")
         val TRANSPORT_KIND = stringPreferencesKey("transportKind")
         val SHOW_BETA = booleanPreferencesKey("showBeta")
@@ -132,6 +140,9 @@ class DataStoreAppSettings(
         val SIMULATED_M_BOOTLOADER = booleanPreferencesKey("simulatedMBootloader")
         val SIMULATED_OPEN_FIRMWARE = booleanPreferencesKey("simulatedOpenFirmware")
         val ACKNOWLEDGED_NOTICE_VERSION = intPreferencesKey("acknowledgedNoticeVersion")
+
+        private fun appearanceFrom(values: Preferences) =
+            Appearance.entries.firstOrNull { it.name == values[APPEARANCE] } ?: Appearance.System
 
         suspend fun load(
             context: Context,

@@ -1,0 +1,5 @@
+<resources>
+    <string name="flash_service_channel_name">Firmware installation</string>
+    <string name="flash_service_title">Installing %1$s</string>
+    <string name="flash_service_text">Keep it plugged in</string>
+</resources>
