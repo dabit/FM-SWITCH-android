@@ -1,25 +1,28 @@
-# FM-SWITCH for Android: architecture (draft)
+# FM-SWITCH for Android: architecture
 
-Status: **draft**, 2026-10-30, from `plans/android-port/research.md`. Items marked **[fact]** are
-taken from the iOS app (`../FM-SWITCH` @ 67ee8c2), FM1Kit 0.4.5 (88b609c, MIT) or the Android
-sources; items marked **[proposal]** are design choices for the plan to confirm or change. Scope
-follows `plans/android-port/PLAN.md` Decisions: Standard look only, minSdk 26.
+Status: 2026-10-30. Items marked **[fact]** are taken from the iOS app (`../FM-SWITCH` @
+67ee8c2), FM1Kit 0.4.5 (88b609c, MIT) or the Android sources; **[decided]** marks a plan
+decision; remaining **[proposal]** items are choices still open. Scope follows
+`plans/android-port/PLAN.md` Decisions: Standard look only, minSdk 26.
 
 ## 1. Modules
 
 ```
-:fm1   pure Kotlin/JVM library, no Android dependencies            [proposal]
+:fm1   pure Kotlin/JVM library, no Android dependencies            [decided]
   package/    FwscPackage, FirmwareContainer, Crc16, Decipher, OfficialFirmware,
-              ApplicationArea (refusesV15OverOtherBootloaders), SamplePackage (test fixtures)
+              ApplicationArea (refusesV15OverOtherBootloaders)
   protocol/   SevenBit, Fm1Message, ReadRequest, Fm1Identity, Fm1Capability, BuildId
   transport/  MidiTransport, MidiConnection, PortDescriptor, SysexInbox, SysexFramer,
               SimulatedFm1 (+ Options)
   updater/    Fm1Updater, UpdaterTiming, UpdateEvent, WriteProgress, InstallCheck/InstallKind,
               InstallOptions, Fm1UpdateError (+ copy), [Fm1Advice optional]
+:model pure Kotlin/JVM data layer                                      [decided]
+  catalogue/  CatalogueStore, PublishedList, FirmwareFilter, catalogue types
+  library/    FirmwareLibrary
+  history/    FlashHistory
+  settings/   Settings
 :app   Android application (Compose, minSdk 26)
   midi/       AndroidMidiTransport (android.media.midi), UnavailableTransport
-  data/       CatalogueStore, PublishedList, FirmwareLibrary, FlashHistory, AppSettings,
-              StarredFirmwares (if in scope)
   model/      DeviceController (+ FlashJob/FlashPhase), InstallReadiness, InstallProgress(+Tracker),
               DeviceSummary, FirmwareFilter, StartUp/FeluccaUpdateCode, EntryDescriptions
   service/    FlashService (foreground service + wake lock)
@@ -33,10 +36,13 @@ follows `plans/android-port/PLAN.md` Decisions: Standard look only, minSdk 26.
   if `ApplicationArea` is ported **[fact: FM1Kit LICENSE; Package/ApplicationArea.swift:1-19]**.
 - Deferred FM1Kit parts not ported: voices, open-firmware backup/project library, bootloader
   installer, FM1Rescue/download mode, `fm1probe`. **[fact: PLAN.md Decisions]**
-- Coroutines in `:fm1` (`kotlinx-coroutines-core` is JVM-only, fine) **[proposal]**: suspend
-  functions for I/O, `Flow` for device changes, a `(UpdateEvent) -> Unit` callback or a
-  `Flow<UpdateEvent>` for progress, injected `UpdaterTiming` and a `TimeSource`/`delay` so tests run
-  under `kotlinx-coroutines-test` virtual time.
+- `SamplePackage` is in `:fm1`'s main source set (`testing/`), not a Gradle test-fixtures
+  source set, so `:model` and `:app` tests can construct package fixtures **[decided]**.
+- **Virtual-time rule [decided]:** every suspending wait in `:fm1` and `:model` uses `delay`,
+  `withTimeoutOrNull`, or `Channel.receive` on an injected `CoroutineScope` or dispatcher. Do
+  not use hard-coded `Dispatchers.*`, `Thread.sleep`, `System.nanoTime`/`currentTimeMillis` for
+  timing decisions, or `runBlocking`; file I/O uses an injected `ioDispatcher`. This keeps the
+  modules testable with `kotlinx-coroutines-test` virtual time.
 
 ## 2. Transport
 
@@ -146,12 +152,12 @@ AppModel (Application-scoped, created once)                        [proposal: ma
   `flash(steps, confirmsSwitchingFirmware, confirmsSameIdentity)`, `resume()`, `dismissFlash()`;
   each step resumes if any loader answers, else installs. Events map to `FlashPhase`
   (preparing → staging → waitingForLoader → writing → verifying → rebooting → succeeded/failed(canResume)).
-- **The run outlives the screen [proposal]:** `DeviceController` lives in the Application; a flash
+- **The run outlives the screen [decided]:** `DeviceController` lives in the Application; a flash
   starts `FlashService` (foreground, notification "Installing <name>… keep it plugged in", partial
   wake lock) and stops it when the job ends. The install screen also sets `FLAG_KEEP_SCREEN_ON`.
-  FGS type: `connectedDevice` (needs `FOREGROUND_SERVICE_CONNECTED_DEVICE` plus an API 34
-  prerequisite — see research §3.7) or `shortService` (~3 min cap). Decide in the plan. Loader resume
-  remains the safety net either way.
+  Its FGS type is `connectedDevice`, with `FOREGROUND_SERVICE_CONNECTED_DEVICE` and
+  `CHANGE_NETWORK_STATE` as the API 34+ prerequisite; `shortService` is not used. Loader resume
+  remains the safety net.
 - **FirmwareLibrary [fact: rules, FirmwareLibrary.swift]:** checks size/SHA-256/product on download,
   recognises V15 by size+hash, keeps the bundled V15 unremovable and never copies it, `packages(thatCanFinish:)`
   for loader identities (stock `ota-FM-1_015` via loader hash; armed `ota-FM1C_` via build-ID prefix).
@@ -160,7 +166,8 @@ AppModel (Application-scoped, created once)                        [proposal: ma
 - **CatalogueStore [fact: rules, CatalogueStore.swift/PublishedList.swift]:** refresh downloads
   `https://fm-1.drewr.dev/firmwares.json`, retries after 2/4/8 s on network errors, refuses a list with
   `formatVersion > 1` or no entries, keeps the cached list on failure and only complains if it's > 1 day
-  old. **[proposal]** no on-device list building (AGENTS.md). Decoding with kotlinx.serialization,
+  old. **No on-device list building [decided]**: use the published list only. Decoding with
+  kotlinx.serialization,
   `ignoreUnknownKeys = true`, `listing` as an Int bitmask.
 - **InstallReadiness, InstallProgress(+Tracker), DeviceSummary, FirmwareFilter, StartUp** are pure
   Kotlin and unit-tested like their Swift counterparts **[proposal; fact: rules in research §3]**.
@@ -188,16 +195,15 @@ AppModel (Application-scoped, created once)                        [proposal: ma
   equivalent. Say so plainly where the app would offer them, as the iOS app does **[fact: AGENTS.md;
   SafetyNoticeView.swift:42-51]**.
 - iCloud Drive sharing: files stay in app storage **[proposal]**.
-- On-device catalogue building (~90 GitHub requests) **[proposal: drop]**.
+- On-device catalogue building (~90 GitHub requests) is not implemented **[decided]**.
 - Background update notifications **[out of scope unless the plan adds them]**.
 
 ## 7. Testing
 
 - `:fm1` unit tests port FM1Kit's ProtocolTests, PackageCheckTests, WriteProgressTests, UpdaterTests,
   OpenFirmwareTests, EdgeCaseTests against `SimulatedFm1` and `SamplePackage` under virtual time.
-- `:app` JVM unit tests port FlashingTests, LibraryTests, PublishedListTests, StartUpTests,
+- `:model` JVM unit tests port LibraryTests, PublishedListTests, StartUpTests,
   StandardLookTests (research §4.1), with the simulator, a temp directory, and a fake fetch.
 - Compose UI tests and a device run for USB MIDI are separate; the real-hardware probe in research
   §0 P4 comes first.
-- CI [proposal]: GitHub Actions on Ubuntu, JDK 17 or 21 via `actions/setup-java`, `./gradlew check`
-  (lint + unit tests), no emulator.
+- There is no CI. `scripts/check.sh` is the local gate for lint, build, and unit tests **[decided]**.

@@ -12,10 +12,17 @@ FM-SWITCH and FM1Kit, its protocol package, are Drew Robinson's original work
 (github.com/ocean/FM-SWITCH, github.com/ocean/FM1Kit). This Android port is maintained by David
 Padilla (github.com/dabit/FM-SWITCH-android).
 
-The repository is new: there is no Gradle project, build, lint or test command yet. When the
-project is created, record the build, lint, test and single-test commands here, plus the
-local check script (the iOS app's equivalent is `../FM-SWITCH/scripts/check.sh`, which must
-pass with no warnings).
+Use JDK 21: every module sets `jvmToolchain(21)` and Gradle does not auto-provision it. If the
+system Java is another version, set `JAVA_HOME="$(mise where java@temurin-21)"`; set `ANDROID_HOME` too (it defaults to
+`$HOME/Android/Sdk`). In Android Studio, set the Gradle JDK to that JDK 21 rather than its
+bundled JBR 25, which cannot satisfy the toolchain.
+
+Run `./gradlew :app:assembleDebug` to build; lint with
+`./gradlew spotlessCheck :app:lintDebug`; and format with `./gradlew spotlessApply`. Run all
+unit tests with `./gradlew :fm1:test :model:test :app:testDebugUnitTest`, or the protocol
+single test with `./gradlew :fm1:test --tests 'dev.drewr.fm1.protocol.SevenBitTest'`.
+`scripts/check.sh [lint|build|test|device]` is the local gate: no argument runs `lint build
+test`; there is no CI.
 
 ## The source app is the spec
 
@@ -51,9 +58,11 @@ tests, mirroring FM1Kit's split: package, protocol, transport, updater.
   app can be built and tested without hardware.
 - **Progress only goes forwards.** The loader reads out of order, so derive progress from
   served ranges, not the last address.
-- **Confirmations follow `PLAN.md`:** SWITCH FIRMWARE? plus an "I've backed up" tick when
-  moving between firmware lines; REINSTALL OR UPDATE? for the same identity; refuse V15 over
-  V15. Installing over Open firmware needs an arming command first.
+- **Confirmations follow `PLAN.md`:** in the Standard look, switching firmware requires the
+  "I've saved anything I want to keep" tick; the same identity is an information notice and
+  its install passes `confirmsSameIdentity`. "SWITCH FIRMWARE?" and "REINSTALL OR UPDATE?" are
+  Retro confirmations.
+  Refuse V15 over V15. Installing over Open firmware needs an arming command first.
 
 **Firmware list.** Download `https://fm-1.drewr.dev/firmwares.json` (built daily by the iOS
 repo's `fm1-catalogue`). Ignore a list whose format is newer than the app understands

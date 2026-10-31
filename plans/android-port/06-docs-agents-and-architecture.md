@@ -1,4 +1,4 @@
-status: pending
+status: done
 # 06 — Docs: real commands in AGENTS.md, Standard-look confirmations, settled architecture
 
 Depends on: 01, 03

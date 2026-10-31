@@ -874,7 +874,7 @@ document's, not part of the bytes. Generated 2026-10-30 by a Python implementati
 
 **Wave 3** — run together
 - [x] 05 — `:fm1` package checks (depends on: 02, 03)
-- [ ] 06 — Docs: real commands in AGENTS.md, Standard-look confirmations, settled architecture (depends on: 01, 03)
+- [x] 06 — Docs: real commands in AGENTS.md, Standard-look confirmations, settled architecture (depends on: 01, 03)
 
 **Wave 4** — run together
 - [x] 07 — `:fm1` transport contracts, port matching and the simulated FM-1 (depends on: 05)
