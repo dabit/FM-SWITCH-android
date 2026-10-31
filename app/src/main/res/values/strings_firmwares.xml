@@ -1,0 +1,50 @@
+<resources>
+    <string name="firmware_add_file">+ Add a firmware file</string>
+    <plurals name="firmware_search"><item quantity="one">Search %1$d firmware</item><item quantity="other">Search %1$d firmwares</item></plurals>
+    <plurals name="firmware_count"><item quantity="one">%1$d firmware</item><item quantity="other">%1$d firmwares</item></plurals>
+    <string name="firmware_getting_list">Getting the firmware list…</string>
+    <string name="firmware_list_updated">List updated %1$s</string>
+    <string name="firmware_none">No firmwares to show yet.</string>
+    <string name="firmware_no_match">Nothing matches “%1$s”.</string>
+    <string name="firmware_order_name">Name</string><string name="firmware_order_updated">Updated</string>
+    <string name="firmware_scope_all">All</string><string name="firmware_scope_built_from_source">Built from source</string>
+    <string name="firmware_added_official">Added M-VAVE’s official firmware.</string>
+    <string name="firmware_added_saved">Added %1$s to My firmwares.</string>
+    <string name="firmware_added_unknown">Added %1$s to My firmwares. It isn’t in the firmware lists, so check where it came from before installing it.</string>
+    <string name="firmware_import_failed">Couldn’t add the firmware file.</string>
+    <string name="firmware_official">Official</string><string name="firmware_saved">Saved</string>
+    <string name="firmware_on_your_fm1">On your FM-1</string><string name="firmware_update">Update</string><string name="firmware_test_version">Test version</string>
+    <string name="firmware_from_file">From a file</string><string name="firmware_in_testing">In testing</string>
+    <string name="firmware_saved_on_phone">Saved on this phone</string>
+    <string name="firmware_saved_empty">Firmwares you download or add with + appear here, ready to install even when you’re offline.</string>
+    <string name="firmware_by">By %1$s</string>
+    <string name="firmware_from_file_warning">Added from a file, and not in the firmware lists, so check where it came from.</string>
+    <string name="firmware_untested_warning">In testing: not yet known to work on a real FM-1. It’s only listed in aroum’s FM‑1 Resource Hub, not on the firmware hub or the FM-1 editor website.</string>
+    <string name="firmware_github_description">The author’s own description, from GitHub.</string>
+    <string name="firmware_needs_build_choice">This release comes in several builds and can’t be installed from here yet.</string>
+    <string name="firmware_install">Install %1$s</string><string name="firmware_save_later">Save to this phone for later</string><string name="firmware_remove">Remove</string>
+    <string name="firmware_saved_offline">Saved on this phone, so it installs even offline.</string>
+    <string name="firmware_bundled_offline">Comes with the app, so it installs even offline.</string>
+    <string name="firmware_no_download">There’s no file to download for this one. Its links below say how to get it; if you get a .fwsc file, add it with + in the firmware list.</string>
+    <string name="firmware_loading">Loading firmware…</string><string name="firmware_not_found">This firmware is no longer in the list.</string>
+    <string name="firmware_downloading">Downloading…</string><string name="firmware_downloads_now">Downloads now. Plug in your FM-1 when you’re ready to install.</string>
+    <string name="firmware_error_title">Firmware file</string><string name="firmware_ok">OK</string>
+    <string name="firmware_could_not_open_file">Couldn’t open the firmware file.</string>
+    <string name="firmware_link_unavailable">No browser is available to open this link.</string>
+    <string name="firmware_details">Details</string><string name="firmware_reports">Reports</string>
+    <string name="firmware_saved_date">Saved</string><string name="firmware_kind">Kind</string><string name="firmware_built_from_source">Built from source</string><string name="firmware_file_from">File from</string>
+    <string name="firmware_installs">Installs</string><string name="firmware_installs_official">From the official firmware, which goes on first</string>
+    <string name="firmware_known_downloaded">Known once downloaded</string><string name="firmware_size">Size</string>
+    <string name="firmware_released">Released</string><string name="firmware_licence">Licence</string>
+    <string name="firmware_recovery">Recovery</string>
+    <string name="firmware_not_known">Not known</string>
+    <string name="firmware_recovery_octave_down">Hold OCT− while switching on</string>
+    <string name="firmware_recovery_octave_down_since">Hold OCT− while switching on (from %1$s)</string>
+    <string name="firmware_recovery_both_octaves">Hold OCT− and OCT+ for 5 s while it runs</string>
+    <string name="firmware_recovery_none">None: OCT− at switch-on starts it as usual (tried on %1$s)</string>
+    <string name="firmware_web_installer">Web installer</string>
+    <string name="firmware_signed_build">Signed build of commit %1$s</string>
+    <string name="firmware_expanded">Expanded</string><string name="firmware_collapsed">Collapsed</string>
+    <string name="firmware_listed_on">Listed on</string><string name="firmware_tested">Tested on an FM-1</string>
+    <string name="firmware_yes">Yes</string><string name="firmware_sha256">SHA-256</string><string name="firmware_not_published">Not published</string>
+</resources>

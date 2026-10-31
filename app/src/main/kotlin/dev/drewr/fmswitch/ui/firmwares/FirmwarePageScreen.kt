@@ -1,16 +1,378 @@
+// Ported from FM-SWITCH App/Standard/Firmwares/FirmwarePageView.swift.
 package dev.drewr.fmswitch.ui.firmwares
 
+import android.content.ActivityNotFoundException
+import androidx.browser.customtabs.CustomTabsIntent
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.core.net.toUri
+import dev.drewr.fmswitch.LocalAppModel
 import dev.drewr.fmswitch.R
+import dev.drewr.fmswitch.model.catalogue.CatalogueEntry
+import dev.drewr.fmswitch.model.catalogue.CatalogueLink
+import dev.drewr.fmswitch.model.catalogue.DescriptionSource
+import dev.drewr.fmswitch.model.catalogue.badge
+import dev.drewr.fmswitch.model.catalogue.isFromFile
+import dev.drewr.fmswitch.model.catalogue.listedOn
+import dev.drewr.fmswitch.model.catalogue.packageSource
+import dev.drewr.fmswitch.model.catalogue.sourceBuildSummary
+import dev.drewr.fmswitch.model.library.StoredFirmware
+import dev.drewr.fmswitch.ui.components.ProminentButton
+import dev.drewr.fmswitch.ui.components.SecondaryButton
 import dev.drewr.fmswitch.ui.navigation.AppNavigator
+import dev.drewr.fmswitch.ui.theme.LocalStandardColors
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.launch
+import java.text.DateFormat
+import java.util.Date
 
 object FirmwarePageScreen {
-    @Composable operator fun invoke(
+    @Composable
+    operator fun invoke(
         entryId: String,
         navigator: AppNavigator,
     ) {
-        Text(stringResource(R.string.title_firmware))
+        val model = LocalAppModel.current
+        val catalogue by model.catalogue.catalogueFlow.collectAsState()
+        val identity by model.device.identity.collectAsState()
+        val saved by model.library.itemsFlow.collectAsState()
+        val downloads by model.firmwareDownloads.collectAsState()
+        var detailsExpanded by remember { mutableStateOf(false) }
+        val entry =
+            model.catalogue.entries.firstOrNull { it.id == entryId }
+                ?: saved.firstOrNull { "file-${it.sha256}" == entryId }?.let(CatalogueEntry::addedFrom)
+                ?: run {
+                    Text(
+                        stringResource(
+                            if (catalogue == null) R.string.firmware_loading else R.string.firmware_not_found,
+                        ),
+                    )
+                    return
+                }
+        val context = LocalContext.current
+        val scope = rememberCoroutineScope()
+        val stored = model.library.stored(entry)
+        val badge = entry.badge
+        var linkError by remember { mutableStateOf<String?>(null) }
+        val download = downloads[entry.id]
+        val isDownloading = download?.isDownloading == true
+        val errorMessage = download?.errorMessage ?: linkError
+        val linkUnavailable = stringResource(R.string.firmware_link_unavailable)
+        val disabled = entry.needsBuildChoice && stored == null
+        Column(Modifier.background(LocalStandardColors.current.ground).verticalScroll(rememberScrollState())) {
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .background(
+                        androidx.compose.ui.graphics
+                            .Color(badge.strongerHalf.toLong() or 0xFF000000),
+                    ).padding(20.dp),
+            ) {
+                Text(
+                    entry.name.ifBlank { stringResource(R.string.title_firmware) },
+                    style = MaterialTheme.typography.headlineLarge,
+                    fontWeight = FontWeight.Black,
+                    color =
+                        androidx.compose.ui.graphics
+                            .Color(badge.ink.toLong() or 0xFF000000),
+                )
+                entry.version?.let {
+                    Text(
+                        it,
+                        style = MaterialTheme.typography.titleMedium,
+                        color =
+                            androidx.compose.ui.graphics
+                                .Color(badge.ink.toLong() or 0xFF000000),
+                    )
+                }
+            }
+            Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                (entry.author ?: stored?.author)?.let {
+                    Text(
+                        stringResource(R.string.firmware_by, it),
+                        color = LocalStandardColors.current.secondaryInk,
+                    )
+                }
+                entry.what?.let { Text(it) }
+                if (entry.whatSource == DescriptionSource.GitHub) {
+                    Text(
+                        stringResource(R.string.firmware_github_description),
+                        color = LocalStandardColors.current.secondaryInk,
+                    )
+                }
+                if (entry.isFromFile) {
+                    Warning(stringResource(R.string.firmware_from_file_warning))
+                } else if (!entry.isHardwareTested) {
+                    Warning(stringResource(R.string.firmware_untested_warning))
+                }
+                if (disabled) {
+                    Text(
+                        stringResource(R.string.firmware_needs_build_choice),
+                        color = LocalStandardColors.current.secondaryInk,
+                    )
+                }
+                if (stored != null || entry.isDownloadable) {
+                    ProminentButton(
+                        if (isDownloading) {
+                            stringResource(
+                                R.string.firmware_downloading,
+                            )
+                        } else {
+                            stringResource(R.string.firmware_install, entry.name)
+                        },
+                        {
+                            linkError = null
+                            model.clearFirmwareDownloadError(entry.id)
+                            model.downloadFirmware(entry) { item ->
+                                navigator.openBeforeYouStart(item.id, entry.requiresOfficialFirmware)
+                            }
+                        },
+                        enabled = !disabled && !isDownloading,
+                    )
+                    if (isDownloading) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
+                            Text(
+                                stringResource(R.string.firmware_downloading),
+                                color = LocalStandardColors.current.secondaryInk,
+                            )
+                        }
+                    }
+                    if (stored ==
+                        null
+                    ) {
+                        SecondaryButton(
+                            stringResource(R.string.firmware_save_later),
+                            {
+                                linkError = null
+                                model.clearFirmwareDownloadError(entry.id)
+                                model.downloadFirmware(entry)
+                            },
+                            enabled = !disabled && !isDownloading,
+                        )
+                    }
+                    if (stored != null) {
+                        Text(
+                            stringResource(
+                                if (model.library.canRemove(
+                                        stored,
+                                    )
+                                ) {
+                                    R.string.firmware_saved_offline
+                                } else {
+                                    R.string.firmware_bundled_offline
+                                },
+                            ),
+                            color = LocalStandardColors.current.secondaryInk,
+                        )
+                        if (model.library.canRemove(stored)) {
+                            TextButton({
+                                scope.launch {
+                                    try {
+                                        model.library.remove(stored)
+                                    } catch (cancelled: CancellationException) {
+                                        throw cancelled
+                                    } catch (error: Throwable) {
+                                        linkError = error.message
+                                    }
+                                }
+                            }) { Text(stringResource(R.string.firmware_remove)) }
+                        }
+                    }
+                    if (stored == null && identity == null) {
+                        Text(
+                            stringResource(R.string.firmware_downloads_now),
+                            color = LocalStandardColors.current.secondaryInk,
+                        )
+                    }
+                } else {
+                    Text(
+                        stringResource(R.string.firmware_no_download),
+                        color = LocalStandardColors.current.secondaryInk,
+                    )
+                }
+                errorMessage?.let { Warning(it) }
+                entry.pageLinks().forEach { link ->
+                    TextButton(
+                        {
+                            try {
+                                CustomTabsIntent.Builder().build().launchUrl(context, link.url.toUri())
+                            } catch (_: ActivityNotFoundException) {
+                                linkError = linkUnavailable
+                            }
+                        },
+                    ) { Text("${link.displayLabel()} ↗") }
+                }
+                Details(entry, stored, detailsExpanded) { detailsExpanded = !detailsExpanded }
+            }
+        }
     }
 }
+
+@Composable private fun Warning(text: String) =
+    Text(
+        text,
+        Modifier
+            .fillMaxWidth()
+            .background(
+                LocalStandardColors.current.warningBackground,
+                RoundedCornerShape(12.dp),
+            ).padding(12.dp),
+        color = LocalStandardColors.current.warningInk,
+    )
+
+@Composable
+private fun Details(
+    entry: CatalogueEntry,
+    stored: StoredFirmware?,
+    expanded: Boolean,
+    onToggle: () -> Unit,
+) = Column(
+    Modifier.fillMaxWidth().background(LocalStandardColors.current.card, RoundedCornerShape(16.dp)).padding(16.dp),
+    verticalArrangement = Arrangement.spacedBy(6.dp),
+) {
+    val label = stringResource(R.string.firmware_details)
+    val state = stringResource(if (expanded) R.string.firmware_expanded else R.string.firmware_collapsed)
+    TextButton(
+        onToggle,
+        Modifier.fillMaxWidth().semantics {
+            role = Role.Button
+            contentDescription = label
+            stateDescription = state
+        },
+    ) {
+        Text(label, Modifier.weight(1f), fontWeight = FontWeight.Bold)
+        Text(if (expanded) "−" else "+")
+    }
+    if (expanded) {
+        Detail(
+            stringResource(R.string.firmware_reports),
+            entry.product ?: stored?.product ?: stringResource(R.string.firmware_known_downloaded),
+        )
+        (entry.size ?: stored?.size)?.let {
+            Detail(
+                stringResource(R.string.firmware_size),
+                android.text.format.Formatter
+                    .formatShortFileSize(LocalContext.current, it.toLong()),
+            )
+        }
+        entry.date?.let { Detail(stringResource(R.string.firmware_released), it) }
+        stored?.let {
+            Detail(
+                stringResource(R.string.firmware_saved_date),
+                DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date.from(it.savedAt)),
+            )
+        }
+        if (entry.kinds.isNotEmpty()) Detail(stringResource(R.string.firmware_kind), entry.kinds.joinToString())
+        Detail(stringResource(R.string.firmware_recovery), entry.recoverySummary())
+        entry.licence?.let { Detail(stringResource(R.string.firmware_licence), it) }
+        Detail(stringResource(R.string.firmware_listed_on), entry.listedOn)
+        if (!entry.isFromFile) {
+            Detail(
+                stringResource(R.string.firmware_tested),
+                if (entry.isHardwareTested) {
+                    stringResource(
+                        R.string.firmware_yes,
+                    )
+                } else {
+                    stringResource(R.string.firmware_in_testing)
+                },
+            )
+        }
+        Detail(stringResource(R.string.firmware_built_from_source), entry.sourceBuildSummary)
+        Detail(stringResource(R.string.firmware_file_from), entry.packageSource)
+        Detail(
+            stringResource(R.string.firmware_sha256),
+            entry.sha256?.take(16)?.plus("…") ?: stringResource(R.string.firmware_not_published),
+        )
+        if (entry.requiresOfficialFirmware) {
+            Detail(
+                stringResource(R.string.firmware_installs),
+                stringResource(R.string.firmware_installs_official),
+            )
+        }
+    }
+}
+
+@Composable
+private fun CatalogueLink.displayLabel() =
+    if (label.equals("Install", ignoreCase = true)) stringResource(R.string.firmware_web_installer) else label
+
+@Composable
+private fun CatalogueEntry.pageLinks() =
+    sourceBuild
+        ?.takeIf { isBuiltFromSource && it.run != null }
+        ?.let {
+            links +
+                CatalogueLink(
+                    stringResource(R.string.firmware_signed_build, it.shortCommit),
+                    requireNotNull(it.run),
+                )
+        }
+        ?: links
+
+@Composable
+private fun CatalogueEntry.recoverySummary() =
+    when (id) {
+        "choralroot" -> {
+            stringResource(R.string.firmware_recovery_octave_down_since, "0.16")
+        }
+
+        "dinghy", "etch", "floyd", "ghoulbox", "jangada", "sloop", "sloopbanks", "sloopdx", "winampfm", "zp12" -> {
+            stringResource(R.string.firmware_recovery_octave_down)
+        }
+
+        "fimba", "fumi" -> {
+            stringResource(R.string.firmware_recovery_both_octaves)
+        }
+
+        "felucca" -> {
+            stringResource(R.string.firmware_recovery_none, "1.6.1")
+        }
+
+        "mvave-official" -> {
+            stringResource(R.string.firmware_recovery_none, "V15")
+        }
+
+        "melodee" -> {
+            stringResource(R.string.firmware_recovery_octave_down_since, "1.3.5")
+        }
+
+        else -> {
+            stringResource(R.string.firmware_not_known)
+        }
+    }
+
+@Composable private fun Detail(
+    label: String,
+    value: String,
+) = Text("$label: $value", color = LocalStandardColors.current.secondaryInk, style = MaterialTheme.typography.bodySmall)

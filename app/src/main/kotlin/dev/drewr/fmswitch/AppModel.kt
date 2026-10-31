@@ -8,11 +8,13 @@ import dev.drewr.fm1.transport.SimulatedFm1
 import dev.drewr.fmswitch.data.DataStoreAppSettings
 import dev.drewr.fmswitch.data.HttpFetch
 import dev.drewr.fmswitch.midi.AndroidMidiTransport
+import dev.drewr.fmswitch.model.catalogue.CatalogueEntry
 import dev.drewr.fmswitch.model.catalogue.CatalogueStore
 import dev.drewr.fmswitch.model.catalogue.PublishedList
 import dev.drewr.fmswitch.model.device.DeviceController
 import dev.drewr.fmswitch.model.history.FlashHistory
 import dev.drewr.fmswitch.model.library.FirmwareLibrary
+import dev.drewr.fmswitch.model.library.StoredFirmware
 import dev.drewr.fmswitch.model.settings.TransportKind
 import dev.drewr.fmswitch.service.FlashService
 import kotlinx.coroutines.CoroutineScope
@@ -39,6 +41,11 @@ sealed interface RequestedPage {
     data object Settings : RequestedPage
 }
 
+data class FirmwareDownloadState(
+    val isDownloading: Boolean = false,
+    val errorMessage: String? = null,
+)
+
 class AppModel private constructor(
     private val context: Context,
     private val scope: CoroutineScope,
@@ -63,6 +70,8 @@ class AppModel private constructor(
 
     private val mutableRequestedPage = MutableStateFlow<RequestedPage?>(null)
     val requestedPage: StateFlow<RequestedPage?> = mutableRequestedPage.asStateFlow()
+    private val mutableFirmwareDownloads = MutableStateFlow<Map<String, FirmwareDownloadState>>(emptyMap())
+    val firmwareDownloads: StateFlow<Map<String, FirmwareDownloadState>> = mutableFirmwareDownloads.asStateFlow()
     private var deviceLogCollector: Job? = null
 
     init {
@@ -71,6 +80,8 @@ class AppModel private constructor(
             catalogue.loadCached()
             history.load()
             device.configure(settings.transportKind)
+            // Like FMSwitchApp.swift:166, refresh the firmware list once at launch.
+            catalogue.refresh()
         }
         scope.launch {
             var serviceRunning = false
@@ -92,6 +103,39 @@ class AppModel private constructor(
 
     fun clearRequestedPage() {
         mutableRequestedPage.value = null
+    }
+
+    fun downloadFirmware(
+        entry: CatalogueEntry,
+        onSaved: (StoredFirmware) -> Unit = {},
+    ) {
+        if (mutableFirmwareDownloads.value[entry.id]?.isDownloading == true) return
+        mutableFirmwareDownloads.value =
+            mutableFirmwareDownloads.value + (entry.id to FirmwareDownloadState(isDownloading = true))
+        scope.launch {
+            try {
+                val item = library.stored(entry) ?: library.download(entry, HttpFetch(Dispatchers.IO)::invoke)
+                onSaved(item)
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (error: Throwable) {
+                mutableFirmwareDownloads.value =
+                    mutableFirmwareDownloads.value +
+                    (entry.id to FirmwareDownloadState(errorMessage = error.message ?: error::class.simpleName))
+            } finally {
+                mutableFirmwareDownloads.value =
+                    mutableFirmwareDownloads.value.mapValues { (id, state) ->
+                        if (id == entry.id) state.copy(isDownloading = false) else state
+                    }
+            }
+        }
+    }
+
+    fun clearFirmwareDownloadError(entryId: String) {
+        mutableFirmwareDownloads.value =
+            mutableFirmwareDownloads.value.mapValues { (id, state) ->
+                if (id == entryId) state.copy(errorMessage = null) else state
+            }
     }
 
     private fun createTransport(

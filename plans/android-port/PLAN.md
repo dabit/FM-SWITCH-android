@@ -893,7 +893,7 @@ document's, not part of the bytes. Generated 2026-10-30 by a Python implementati
 
 **Wave 8** — run together
 - [x] 14 — Home, Settings and About (depends on: 13)
-- [ ] 15 — Firmwares list, firmware page and My firmwares (depends on: 13)
+- [x] 15 — Firmwares list, firmware page and My firmwares (depends on: 13)
 - [x] 16 — Before you start, Installing, Done and Problem (depends on: 13)
 
 **Wave 9**

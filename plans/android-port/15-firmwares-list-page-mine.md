@@ -1,4 +1,4 @@
-status: pending
+status: done
 # 15 — Firmwares list, firmware page and My firmwares
 
 Depends on: 13
