@@ -20,9 +20,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -119,10 +121,13 @@ private fun InstallOverlay(job: FlashJob) {
             progress = drawingProgress(job.isRunning, progress.fraction),
             screenTint = INSTALL_SCREEN_TINT,
         )
-        when (val phase = job.phase) {
-            is FlashPhase.Succeeded -> InstallDone(job, phase.identity)
-            is FlashPhase.Failed -> InstallProblem(job, phase.message, phase.canResume)
-            else -> Installing(job, progress)
+        // The overlay sits outside the app's surface, so text needs the theme's colour set here.
+        CompositionLocalProvider(LocalContentColor provides colors.ink) {
+            when (val phase = job.phase) {
+                is FlashPhase.Succeeded -> InstallDone(job, phase.identity)
+                is FlashPhase.Failed -> InstallProblem(job, phase.message, phase.canResume)
+                else -> Installing(job, progress)
+            }
         }
     }
 }
