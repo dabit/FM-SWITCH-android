@@ -44,7 +44,15 @@ class FirmwareLibrary(
     private val bundledOfficial: () -> InputStream,
     private val ioDispatcher: CoroutineDispatcher,
     private val now: () -> Instant,
+    private val officialOf: (FwscPackage) -> OfficialFirmware? = OfficialFirmware::official,
 ) {
+    constructor(
+        directory: File,
+        bundledOfficial: () -> InputStream,
+        ioDispatcher: CoroutineDispatcher,
+        now: () -> Instant,
+    ) : this(directory, bundledOfficial, ioDispatcher, now, OfficialFirmware::official)
+
     private val mutableItems = MutableStateFlow<List<StoredFirmware>>(emptyList())
     val itemsFlow: StateFlow<List<StoredFirmware>> = mutableItems.asStateFlow()
     val items: List<StoredFirmware> get() = mutableItems.value
@@ -117,12 +125,22 @@ class FirmwareLibrary(
         } else {
             items.firstOrNull {
                 it.catalogueID == entry.id &&
-                    entry.version?.let { version -> ReleaseVersion.isNewer(version, it.version) } == true
+                    (entry.version?.let { version -> ReleaseVersion.isNewer(version, it.version) } ?: true)
             }
         }
 
     fun otherBuild(entry: CatalogueEntry) =
-        if (stored(entry) != null || outdated(entry) != null) null else items.firstOrNull { it.catalogueID == entry.id }
+        if (stored(entry) != null) {
+            null
+        } else {
+            items.firstOrNull {
+                it.catalogueID == entry.id && !ReleaseVersion.differs(it.version, entry.version)
+            }
+        }
+
+    fun savedCopies(entry: CatalogueEntry) = items.filter { it.catalogueID == entry.id }
+
+    fun isSaved(entry: CatalogueEntry) = savedCopies(entry).isNotEmpty() && outdated(entry) == null
 
     val totalBytes get() = items.sumOf { it.size }
 
@@ -169,11 +187,17 @@ class FirmwareLibrary(
                 when {
                     loader.armedBuildPrefix?.let { buildId(item).startsWith(it) } == true -> true
                     Fm1Identity.LOADER_PREFIX + item.product == loader.text -> true
-                    loader.text == STOCK_LOADER_IDENTITY -> loaderSha256(item) == OfficialFirmware.STOCK_LOADER_SHA256
+                    isStockLoader(loader) -> loaderSha256(item) == OfficialFirmware.STOCK_LOADER_SHA256
                     else -> false
                 }
             }
         }
+
+    private fun isStockLoader(loader: Fm1Identity) =
+        loader.isLoader &&
+            loader.armedBuildPrefix == null &&
+            loader.hardwareModel == "FM-1" &&
+            OfficialFirmware.official.any { it.identity.version == loader.version }
 
     private fun buildId(item: StoredFirmware) =
         OfficialFirmware.known
@@ -205,38 +229,32 @@ class FirmwareLibrary(
                         throw Failure.Download(error.message ?: error::class.simpleName.orEmpty())
                     }
                 if (
-                    (entry.size != null && entry.size != bytes.size) ||
-                    (entry.sha256 != null && !FwscPackage.sha256Hex(bytes).equals(entry.sha256, true))
+                    !entry.isOfficial &&
+                    (
+                        (entry.size != null && entry.size != bytes.size) ||
+                            (entry.sha256 != null && !FwscPackage.sha256Hex(bytes).equals(entry.sha256, true))
+                    )
                 ) {
                     throw Failure.HashMismatch
                 }
                 val packageFile = FwscPackage(bytes)
-                if (entry.product != null &&
+                if (
+                    !entry.isOfficial &&
+                    entry.product != null &&
                     entry.product != packageFile.product
                 ) {
                     throw Failure.ProductMismatch(entry.product, packageFile.product)
                 }
-                if (OfficialFirmware.V15.matches(
-                        packageFile,
-                    )
-                ) {
-                    return@withContext save(
+                officialOf(packageFile)?.let { official ->
+                    return@withContext saveOfficial(
                         bytes,
                         packageFile,
-                        OfficialFirmware.V15.name,
-                        "Official",
-                        "M-VAVE",
-                        StoredFirmware.Source.Official,
+                        official.name,
                         entry.id,
                         address,
-                        null,
                     )
                 }
                 if (entry.isOfficial) throw Failure.NotOfficial
-                items.filter { it.catalogueID == entry.id }.forEach { item ->
-                    url(item)?.delete()
-                    File(details, "${item.sha256}.json").delete()
-                }
                 save(
                     bytes,
                     packageFile,
@@ -259,38 +277,49 @@ class FirmwareLibrary(
             withContext(ioDispatcher) {
                 val packageFile = FwscPackage(bytes)
                 items.firstOrNull { it.sha256 == packageFile.sha256 }?.let { return@withContext it }
-                val known = OfficialFirmware.matching(packageFile)
-                if (known ==
-                    OfficialFirmware.V15
-                ) {
-                    save(
+                officialOf(packageFile)?.let { official ->
+                    return@withContext saveOfficial(
                         bytes,
                         packageFile,
-                        known.name,
-                        "Official",
-                        "M-VAVE",
-                        StoredFirmware.Source.Official,
-                        null,
-                        null,
-                        null,
-                    )
-                } else {
-                    save(
-                        bytes,
-                        packageFile,
-                        known?.name ?: fallbackName,
-                        packageFile.product,
-                        known?.let {
-                            "M-VAVE"
-                        },
-                        StoredFirmware.Source.Imported,
-                        null,
+                        official.name,
                         null,
                         null,
                     )
                 }
+                val known = OfficialFirmware.matching(packageFile)
+                save(
+                    bytes,
+                    packageFile,
+                    known?.name ?: fallbackName,
+                    packageFile.product,
+                    known?.let {
+                        "M-VAVE"
+                    },
+                    StoredFirmware.Source.Imported,
+                    null,
+                    null,
+                    null,
+                )
             }
         }
+
+    private suspend fun saveOfficial(
+        bytes: ByteArray,
+        packageFile: FwscPackage,
+        name: String,
+        catalogueID: String?,
+        packageURL: String?,
+    ) = save(
+        bytes,
+        packageFile,
+        name,
+        "Official",
+        "M-VAVE",
+        StoredFirmware.Source.Official,
+        catalogueID,
+        packageURL,
+        null,
+    )
 
     private suspend fun save(
         bytes: ByteArray,
@@ -303,7 +332,7 @@ class FirmwareLibrary(
         packageURL: String?,
         build: String?,
     ): StoredFirmware {
-        builtIn?.takeIf { source == StoredFirmware.Source.Official }?.let { return it }
+        items.firstOrNull { it.sha256 == packageFile.sha256 }?.let { return it }
         directory.mkdirs()
         details.mkdirs()
         val safe = (
@@ -381,13 +410,11 @@ class FirmwareLibrary(
         ) : Failure("The file reports $found, but the catalogue says $expected. Not saved.")
 
         data object NotOfficial : Failure(
-            "That file isn't a recognised official FM-1 firmware (only an unmodified V15 FM-1.fwsc is accepted).",
+            "That file isn't a recognised official FM-1 firmware (only an unmodified V15 or V16 FM-1.fwsc is accepted).",
         )
     }
 
     companion object {
-        const val STOCK_LOADER_IDENTITY = "ota-FM-1_015"
-
         private fun atomicWrite(
             file: File,
             bytes: ByteArray,
@@ -404,6 +431,14 @@ class FirmwareLibrary(
 
 /** Release ordering equivalent to the catalogue's semantic version comparison. */
 object ReleaseVersion {
+    fun differs(
+        candidate: String,
+        listed: String?,
+    ): Boolean {
+        if (listed == null) return true
+        return isNewer(candidate, listed) || isNewer(listed, candidate)
+    }
+
     fun isNewer(
         candidate: String,
         than: String,

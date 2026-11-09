@@ -1,6 +1,10 @@
 package dev.drewr.fmswitch.model.library
+
+import dev.drewr.fm1.pkg.FwscPackage
+import dev.drewr.fm1.pkg.OfficialFirmware
 import dev.drewr.fm1.protocol.Fm1Identity
 import dev.drewr.fm1.testing.SamplePackage
+import dev.drewr.fmswitch.model.catalogue.CatalogueEntry
 import kotlinx.coroutines.Dispatchers
 import java.io.File
 import java.io.FileInputStream
@@ -8,6 +12,7 @@ import java.time.Instant
 import kotlin.io.path.createTempDirectory
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class LibraryTest {
@@ -22,11 +27,21 @@ class LibraryTest {
         loader: Fm1Identity,
     ) = kotlinx.coroutines.runBlocking { library.packagesThatCanFinish(loader) }
 
-    private fun library(): FirmwareLibrary {
+    private fun download(
+        library: FirmwareLibrary,
+        entry: CatalogueEntry,
+        bytes: ByteArray,
+    ) = kotlinx.coroutines.runBlocking { library.download(entry) { bytes } }
+
+    private fun library(officialOf: (FwscPackage) -> OfficialFirmware? = OfficialFirmware::official): FirmwareLibrary {
         val f = File(System.getProperty("fm1.v15"))
-        return FirmwareLibrary(createTempDirectory().toFile(), {
-            FileInputStream(f)
-        }, Dispatchers.Unconfined, { Instant.EPOCH }).also { kotlinx.coroutines.runBlocking { it.load() } }
+        return FirmwareLibrary(
+            createTempDirectory().toFile(),
+            { FileInputStream(f) },
+            Dispatchers.Unconfined,
+            now = { Instant.EPOCH },
+            officialOf = officialOf,
+        ).also { kotlinx.coroutines.runBlocking { it.load() } }
     }
 
     private fun libraryWithStockLoader(): FirmwareLibrary {
@@ -155,7 +170,7 @@ class LibraryTest {
         )
     }
 
-    @Test fun refusesAnOfficialEntryThatIsntV15() {
+    @Test fun refusesAnOfficialEntryThatIsntV15OrV16() {
         val library = library()
         val bytes = SamplePackage.file("FM-1_916")
         val entry =
@@ -166,17 +181,16 @@ class LibraryTest {
                 isOfficial = true,
                 size = bytes.size,
             )
-        assertTrue(
+        val failure =
             kotlin
                 .runCatching {
-                    kotlinx.coroutines.runBlocking {
-                        library.download(entry) { bytes }
-                    }
-                }.exceptionOrNull() is FirmwareLibrary.Failure.NotOfficial,
-        )
+                    kotlinx.coroutines.runBlocking { library.download(entry) { bytes } }
+                }.exceptionOrNull()
+        assertTrue(failure is FirmwareLibrary.Failure.NotOfficial)
+        assertTrue(failure?.message?.contains("V15 or V16") == true)
     }
 
-    @Test fun savesAndReplacesAnOlderRelease() {
+    @Test fun keepsEachReleaseItSaves() {
         val library = library()
         val firstBytes = SamplePackage.file("FM-1_916")
         val secondBytes = SamplePackage.file("FM-1_917", seed = 14)
@@ -204,7 +218,104 @@ class LibraryTest {
             }
         assertTrue(first.sha256 != second.sha256)
         assertTrue(library.items.any { it.id == second.id })
-        assertTrue(library.items.none { it.id == first.id })
+        assertTrue(library.items.any { it.id == first.id })
+        assertEquals(
+            2,
+            library
+                .savedCopies(
+                    CatalogueEntry("same", "Felucca", packageURL = "two"),
+                ).size,
+        )
+    }
+
+    @Test fun otherBuildNeedsTheSameVersion() {
+        val oldLibrary = library()
+        val old = SamplePackage.file("FM-1_916")
+        download(
+            oldLibrary,
+            CatalogueEntry("same", "Felucca", version = "1.0", packageURL = "one", size = old.size),
+            old,
+        )
+        val newer = CatalogueEntry("same", "Felucca", version = "1.1", packageURL = "two")
+        assertTrue(oldLibrary.outdated(newer) != null)
+        assertEquals(null, oldLibrary.otherBuild(newer))
+        assertFalse(oldLibrary.isSaved(newer))
+
+        val currentLibrary = library()
+        val current = SamplePackage.file("FM-1_917", seed = 14)
+        download(
+            currentLibrary,
+            CatalogueEntry("same", "Felucca", version = "1.1", packageURL = "one", size = current.size),
+            current,
+        )
+        assertTrue(currentLibrary.otherBuild(newer) != null)
+        assertTrue(currentLibrary.isSaved(newer))
+    }
+
+    @Test fun downloadsTheOfficialEntryCheckingItsHashNotTheList() {
+        val bytes = SamplePackage.file("FM-1_016")
+        val library =
+            library { packageFile ->
+                if (packageFile.product == "FM-1_016") OfficialFirmware.V16 else OfficialFirmware.official(packageFile)
+            }
+        val item =
+            download(
+                library,
+                CatalogueEntry(
+                    "official",
+                    "M-VAVE",
+                    packageURL = "v16",
+                    product = "FM-1_999",
+                    size = bytes.size + 1,
+                    sha256 = "00",
+                    isOfficial = true,
+                ),
+                bytes,
+            )
+        assertEquals(StoredFirmware.Source.Official, item.source)
+        assertEquals("FM-1 V16", item.name)
+        assertEquals("Official", item.version)
+        assertEquals(FwscPackage(bytes).sha256, item.sha256)
+        assertTrue(File(libraryDir(library), item.fileName).isFile)
+        assertEquals(OfficialFirmware.V15.sha256, library.official!!.sha256)
+    }
+
+    @Test fun downloadingV15FromTheListReturnsTheBuiltInCopy() {
+        val library = library()
+        val bytes = File(System.getProperty("fm1.v15")).readBytes()
+        val item =
+            download(
+                library,
+                CatalogueEntry("official", "M-VAVE", packageURL = "v15", isOfficial = true),
+                bytes,
+            )
+        assertEquals(library.official, item)
+        assertTrue(libraryDir(library).listFiles()?.none { it.extension == "fwsc" } == true)
+    }
+
+    @Test fun addRecognisesV16ByHash() {
+        val bytes = SamplePackage.file("FM-1_016")
+        val library =
+            library { packageFile ->
+                if (packageFile.product == "FM-1_016") OfficialFirmware.V16 else OfficialFirmware.official(packageFile)
+            }
+        val item = add(library, bytes, "Not used")
+        assertEquals(StoredFirmware.Source.Official, item.source)
+        assertEquals("FM-1 V16", item.name)
+        assertTrue(File(libraryDir(library), item.fileName).isFile)
+    }
+
+    @Test fun aStockLoaderReportingV16CanBeFinishedByV15() {
+        val library = libraryWithStockLoader()
+        val loader = Fm1Identity.parse("ota-FM-1_016")!!
+        assertEquals(1, finishers(library, loader).size)
+    }
+
+    @Test fun aCustomLoaderStillMatchesOnlyItsOwnPackage() {
+        val library = libraryWithStockLoader()
+        val item = add(library, SamplePackage.file("FM-1_916"), "Felucca")
+        val loader = Fm1Identity.parse("ota-FM-1_916")!!
+        assertEquals(listOf(item), finishers(library, loader))
     }
 
     @Test fun savingUsesTheInjectedClock() {

@@ -1,4 +1,4 @@
-status: pending
+status: done
 # 06 — `:model` library: keep every release, V16 by hash, the save trap, stock-loader resume
 
 Depends on: 02
