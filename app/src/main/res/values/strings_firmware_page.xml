@@ -1,0 +1,9 @@
+<resources>
+    <string name="firmware_installs_value">%1$s on The Firmware Hub</string>
+    <string name="firmware_saves_on">Saves on</string>
+    <string name="firmware_saved_ready">Saved, ready for offline install</string>
+    <string name="firmware_delete_saved_version">Delete this saved version</string>
+    <string name="firmware_install_version">Install %1$s%2$s</string>
+    <string name="firmware_save_later_version">Save%1$s to this phone for later</string>
+    <string name="firmware_version_newest">Newest</string>
+</resources>

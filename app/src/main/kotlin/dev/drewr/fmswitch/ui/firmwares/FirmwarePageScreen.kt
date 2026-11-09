@@ -48,26 +48,27 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
+import dev.drewr.fm1.protocol.Fm1FlashChip
 import dev.drewr.fmswitch.LocalAppModel
 import dev.drewr.fmswitch.R
 import dev.drewr.fmswitch.model.catalogue.CatalogueEntry
 import dev.drewr.fmswitch.model.catalogue.CatalogueLink
 import dev.drewr.fmswitch.model.catalogue.DescriptionSource
+import dev.drewr.fmswitch.model.catalogue.FirmwareDescription
+import dev.drewr.fmswitch.model.catalogue.HubFlashChip
 import dev.drewr.fmswitch.model.catalogue.badge
 import dev.drewr.fmswitch.model.catalogue.isFromFile
 import dev.drewr.fmswitch.model.catalogue.listedOn
 import dev.drewr.fmswitch.model.catalogue.packageSource
 import dev.drewr.fmswitch.model.catalogue.sourceBuildSummary
 import dev.drewr.fmswitch.model.library.StoredFirmware
-import dev.drewr.fmswitch.ui.components.ProminentButton
-import dev.drewr.fmswitch.ui.components.SecondaryButton
 import dev.drewr.fmswitch.ui.navigation.AppNavigator
 import dev.drewr.fmswitch.ui.theme.LocalStandardColors
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.DateFormat
+import java.text.NumberFormat
 import java.util.Date
 
 object FirmwarePageScreen {
@@ -79,6 +80,7 @@ object FirmwarePageScreen {
         val model = LocalAppModel.current
         val catalogue by model.catalogue.catalogueFlow.collectAsState()
         val identity by model.device.identity.collectAsState()
+        val flashChipId by model.device.flashChipId.collectAsState()
         val saved by model.library.itemsFlow.collectAsState()
         val downloads by model.firmwareDownloads.collectAsState()
         var detailsExpanded by remember { mutableStateOf(false) }
@@ -94,7 +96,6 @@ object FirmwarePageScreen {
                     return
                 }
         val context = LocalContext.current
-        val scope = rememberCoroutineScope()
         val stored = model.library.stored(entry)
         val badge = entry.badge
         var linkError by remember { mutableStateOf<String?>(null) }
@@ -150,7 +151,7 @@ object FirmwarePageScreen {
                         color = LocalStandardColors.current.secondaryInk,
                     )
                 }
-                entry.what?.let { Text(it) }
+                entry.what?.let { Text(annotated(FirmwareDescription.runs(it))) }
                 if (entry.whatSource == DescriptionSource.GitHub) {
                     Text(
                         stringResource(R.string.firmware_github_description),
@@ -162,6 +163,12 @@ object FirmwarePageScreen {
                 } else if (!entry.isHardwareTested) {
                     Warning(stringResource(R.string.firmware_untested_warning))
                 }
+                if (entry.flashChip == HubFlashChip.Old && flashChipId != Fm1FlashChip.P25Q80) {
+                    FlashChipNotice(
+                        names = listOf(entry.name),
+                        hasNewerFlashChip = flashChipId == Fm1FlashChip.UC25HQ80,
+                    )
+                }
                 if (disabled) {
                     Text(
                         stringResource(R.string.firmware_needs_build_choice),
@@ -169,22 +176,23 @@ object FirmwarePageScreen {
                     )
                 }
                 if (stored != null || entry.isDownloadable) {
-                    ProminentButton(
-                        if (isDownloading) {
-                            stringResource(
-                                R.string.firmware_downloading,
-                            )
-                        } else {
-                            stringResource(R.string.firmware_install, entry.name)
-                        },
-                        {
+                    FirmwarePageSaving(
+                        entry = entry,
+                        stored = stored,
+                        savedCopies = model.library.savedCopies(entry),
+                        isConnected = identity != null,
+                        isDownloading = isDownloading,
+                        disabled = disabled,
+                        library = model.library,
+                        onDownload = { onSaved ->
                             linkError = null
                             model.clearFirmwareDownloadError(entry.id)
-                            model.downloadFirmware(entry) { item ->
-                                navigator.openBeforeYouStart(item.id, entry.requiresOfficialFirmware)
-                            }
+                            model.downloadFirmware(entry, onSaved)
                         },
-                        enabled = !disabled && !isDownloading,
+                        onInstall = { item ->
+                            navigator.openBeforeYouStart(item.id, entry.requiresOfficialFirmware)
+                        },
+                        onError = { linkError = it },
                     )
                     if (isDownloading) {
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -195,55 +203,10 @@ object FirmwarePageScreen {
                             )
                         }
                     }
-                    if (stored ==
-                        null
-                    ) {
-                        SecondaryButton(
-                            stringResource(R.string.firmware_save_later),
-                            {
-                                linkError = null
-                                model.clearFirmwareDownloadError(entry.id)
-                                model.downloadFirmware(entry)
-                            },
-                            enabled = !disabled && !isDownloading,
-                        )
-                    }
                     if (stored != null) {
-                        Text(
-                            stringResource(
-                                if (model.library.canRemove(
-                                        stored,
-                                    )
-                                ) {
-                                    R.string.firmware_saved_offline
-                                } else {
-                                    R.string.firmware_bundled_offline
-                                },
-                            ),
-                            color = LocalStandardColors.current.secondaryInk,
-                        )
-                        if (model.library.canRemove(stored)) {
-                            TextButton({
-                                scope.launch {
-                                    try {
-                                        model.library.remove(stored)
-                                    } catch (cancelled: CancellationException) {
-                                        throw cancelled
-                                    } catch (error: Throwable) {
-                                        linkError = error.message
-                                    }
-                                }
-                            }) { Text(stringResource(R.string.firmware_remove)) }
-                        }
                         model.library.url(stored)?.let { file ->
                             SaveACopy(file) { linkError = it }
                         }
-                    }
-                    if (stored == null && identity == null) {
-                        Text(
-                            stringResource(R.string.firmware_downloads_now),
-                            color = LocalStandardColors.current.secondaryInk,
-                        )
                     }
                 } else {
                     Text(
@@ -324,6 +287,15 @@ private fun Details(
         if (entry.kinds.isNotEmpty()) Detail(stringResource(R.string.firmware_kind), entry.kinds.joinToString())
         entry.licence?.let { Detail(stringResource(R.string.firmware_licence), it) }
         entry.stars?.let { Detail(stringResource(R.string.firmware_github_stars), it.toString()) }
+        entry.installs?.let {
+            Detail(
+                stringResource(R.string.firmware_installs),
+                stringResource(
+                    R.string.firmware_installs_value,
+                    NumberFormat.getIntegerInstance().format(it),
+                ),
+            )
+        }
         Detail(stringResource(R.string.firmware_recovery), entry.recoverySummary())
         Detail(stringResource(R.string.firmware_listed_on), entry.listedOn)
         if (!entry.isFromFile) {
@@ -338,6 +310,7 @@ private fun Details(
                 },
             )
         }
+        entry.flashChip?.let { Detail(stringResource(R.string.firmware_saves_on), it.savesOn) }
         Detail(stringResource(R.string.firmware_built_from_source), entry.sourceBuildSummary)
         Detail(stringResource(R.string.firmware_file_from), entry.packageSource)
         Detail(

@@ -1,4 +1,4 @@
-status: pending
+status: done
 # 11 — `:app` firmware page: styled description, older-chip notice, Installs and Saves on, saved versions
 
 Depends on: 05, 06, 08, 09, 10

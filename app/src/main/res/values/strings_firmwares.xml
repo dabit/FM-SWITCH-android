@@ -1,4 +1,4 @@
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <string name="firmware_add_file">+ Add a firmware file</string>
     <plurals name="firmware_search"><item quantity="one">Search %1$d firmware</item><item quantity="other">Search %1$d firmwares</item></plurals>
     <plurals name="firmware_count"><item quantity="one">%1$d firmware</item><item quantity="other">%1$d firmwares</item></plurals>
@@ -24,11 +24,9 @@
     <string name="firmware_filtered_empty">None of these match the filter picked.</string>
     <string name="firmware_by">By %1$s</string>
     <string name="firmware_from_file_warning">Added from a file, and not in the firmware lists, so check where it came from.</string>
-    <string name="firmware_untested_warning">In testing: not yet known to work on a real FM-1. It’s only listed in aroum’s FM‑1 Resource Hub, not on the firmware hub or the FM-1 editor website.</string>
+    <string name="firmware_untested_warning" tools:ignore="Typos">In testing: not yet known to work on a real FM-1. It\'s only listed in aroum\'s FM1 Resource Hub or on mutant.cloud, not on The Firmware Hub or fm1-editor.com.</string>
     <string name="firmware_github_description">The author’s own description, from GitHub.</string>
     <string name="firmware_needs_build_choice">This release comes in several builds and can’t be installed from here yet.</string>
-    <string name="firmware_install">Install %1$s</string><string name="firmware_save_later">Save to this phone for later</string><string name="firmware_remove">Remove</string>
-    <string name="firmware_saved_offline">Saved on this phone, so it installs even offline.</string>
     <string name="firmware_bundled_offline">Comes with the app, so it installs even offline.</string>
     <string name="firmware_no_download">There’s no file to download for this one. Its links below say how to get it; if you get a .fwsc file, add it with + in the firmware list.</string>
     <string name="firmware_loading">Loading firmware…</string><string name="firmware_not_found">This firmware is no longer in the list.</string>
