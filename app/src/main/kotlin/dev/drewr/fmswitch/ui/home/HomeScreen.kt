@@ -77,7 +77,7 @@ object HomeScreen {
         var rescanning by remember { mutableStateOf(false) }
         val savedCount =
             catalogue?.entries.orEmpty().count {
-                model.library.stored(it) != null || model.library.otherBuild(it) != null
+                model.library.savedCopies(it).isNotEmpty()
             }
         var finishers by remember { mutableStateOf<List<StoredFirmware>>(emptyList()) }
 

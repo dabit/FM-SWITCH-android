@@ -1,4 +1,4 @@
-status: pending
+status: done
 # 10 — `:app` firmware list and My firmwares: Most installed, wrapped and remembered filters, pinned sort, saved releases
 
 Depends on: 05, 06, 09

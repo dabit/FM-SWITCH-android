@@ -1049,7 +1049,7 @@ None blocking. P-D1 (automatic MIDIMON) is the one decision David may want to re
 
 **Wave 3** — run together
 - [x] 07 — `:model` switching guides, words, readiness, MIDIMON first, saved guides (depends on: 02, 03, 05)
-- [ ] 10 — `:app` firmware list and My firmwares (depends on: 05, 06, 09)
+- [x] 10 — `:app` firmware list and My firmwares (depends on: 05, 06, 09)
 
 **Wave 4**
 - [ ] 08 — `:model` flash job and controller: pass 2, late returns, guides and start-up, flash chip state (depends on: 04, 07)

@@ -6,17 +6,22 @@
     <string name="firmware_list_updated">List updated %1$s</string>
     <string name="firmware_none">No firmwares to show yet.</string>
     <string name="firmware_no_match">Nothing matches “%1$s”.</string>
-    <string name="firmware_order_name">Name</string><string name="firmware_order_updated">Updated</string>
+    <string name="firmware_order_name">Name</string><string name="firmware_order_updated">Updated</string><string name="firmware_order_most_installed">Most installed</string>
     <string name="firmware_scope_all">All</string><string name="firmware_scope_built_from_source">Built from source</string>
+    <string name="firmware_sort_by">Sort by %1$s</string>
+    <string name="firmware_shows_filters">Shows the filters</string>
+    <string name="firmware_installs_source">Install counts are from The Firmware Hub\'s site.</string>
+    <string name="firmware_uncounted_note">These aren\'t on The Firmware Hub, so they have no install count.</string>
     <string name="firmware_added_official">Added M-VAVE’s official firmware.</string>
     <string name="firmware_added_saved">Added %1$s to My firmwares.</string>
     <string name="firmware_added_unknown">Added %1$s to My firmwares. It isn’t in the firmware lists, so check where it came from before installing it.</string>
     <string name="firmware_import_failed">Couldn’t add the firmware file.</string>
-    <string name="firmware_official">Official</string><string name="firmware_saved">Saved</string>
+    <string name="firmware_official">Official</string><string name="firmware_saved">Saved</string><plurals name="firmware_saved_copies"><item quantity="one">%1$d saved</item><item quantity="other">%1$d saved</item></plurals>
     <string name="firmware_on_your_fm1">On your FM-1</string><string name="firmware_update">Update</string><string name="firmware_test_version">Test version</string>
     <string name="firmware_from_file">From a file</string><string name="firmware_in_testing">In testing</string>
     <string name="firmware_saved_on_phone">Saved on this phone</string>
     <string name="firmware_saved_empty">Firmwares you download or add with + appear here, ready to install even when you’re offline.</string>
+    <string name="firmware_filtered_empty">None of these match the filter picked.</string>
     <string name="firmware_by">By %1$s</string>
     <string name="firmware_from_file_warning">Added from a file, and not in the firmware lists, so check where it came from.</string>
     <string name="firmware_untested_warning">In testing: not yet known to work on a real FM-1. It’s only listed in aroum’s FM‑1 Resource Hub, not on the firmware hub or the FM-1 editor website.</string>

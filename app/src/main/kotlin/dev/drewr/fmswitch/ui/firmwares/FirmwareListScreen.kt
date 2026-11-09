@@ -8,26 +8,17 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentSize
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.AssistChipDefaults
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuAnchorType
-import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -42,7 +33,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -52,7 +42,6 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -60,6 +49,7 @@ import androidx.compose.ui.unit.dp
 import dev.drewr.fmswitch.LocalAppModel
 import dev.drewr.fmswitch.R
 import dev.drewr.fmswitch.model.catalogue.CatalogueEntry
+import dev.drewr.fmswitch.model.catalogue.FirmwareDescription
 import dev.drewr.fmswitch.model.catalogue.FirmwareFilter
 import dev.drewr.fmswitch.model.catalogue.FirmwareOrder
 import dev.drewr.fmswitch.model.catalogue.FirmwareScope
@@ -85,13 +75,11 @@ object FirmwareListScreen {
         val saved by model.library.itemsFlow.collectAsState()
         val context = LocalContext.current
         val resources = LocalResources.current
-        val scope = rememberCoroutineScope()
+        val coroutineScope = rememberCoroutineScope()
         var importMessage by remember { mutableStateOf<String?>(null) }
         var search by remember { mutableStateOf("") }
-        var selectedScopeKey by rememberSaveable { mutableStateOf("all") }
-        val selectedScope = savedScope(selectedScopeKey)
+        var selectedScopeStored by remember { mutableStateOf(model.settings.firmwareScope) }
         val configuredOrder = model.settings.firmwareOrder
-        val back = stringResource(R.string.back)
         var order by remember { mutableStateOf(configuredOrder) }
         LaunchedEffect(configuredOrder) { order = configuredOrder }
         val savedCatalogueIds = saved.mapNotNull { it.catalogueID }
@@ -102,14 +90,13 @@ object FirmwareListScreen {
                 model.settings.showLinksOnly,
                 savedCatalogueIds,
             )
-        val entries =
-            order.sorted(
-                FirmwareFilter(search).matching(visible, model.settings.showBeta).filter(selectedScope::includes),
-            )
+        val scopes = FirmwareFilter.scopes(visible)
+        val selectedScope =
+            FirmwareScope.fromStored(selectedScopeStored)?.offered(scopes) ?: FirmwareScope.All
         val importer =
             rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
                 uri ?: return@rememberLauncherForActivityResult
-                scope.launch {
+                coroutineScope.launch {
                     try {
                         val (bytes, name) =
                             withContext(Dispatchers.IO) {
@@ -133,14 +120,10 @@ object FirmwareListScreen {
                         importMessage =
                             when {
                                 item.source == StoredFirmware.Source.Official -> {
-                                    resources.getString(
-                                        R.string.firmware_added_official,
-                                    )
+                                    resources.getString(R.string.firmware_added_official)
                                 }
 
-                                model.catalogue.entries.any {
-                                    it.sha256.equals(item.sha256, true)
-                                } -> {
+                                model.catalogue.entries.any { it.sha256.equals(item.sha256, true) } -> {
                                     resources.getString(R.string.firmware_added_saved, item.name)
                                 }
 
@@ -150,11 +133,13 @@ object FirmwareListScreen {
                             }
                     } catch (cancelled: CancellationException) {
                         throw cancelled
-                    } catch (error: Throwable) {
-                        importMessage = error.message ?: resources.getString(R.string.firmware_import_failed)
+                    } catch (failure: Throwable) {
+                        importMessage = failure.message ?: resources.getString(R.string.firmware_import_failed)
                     }
                 }
             }
+        val back = stringResource(R.string.back)
+
         Column(Modifier.background(LocalStandardColors.current.ground)) {
             TopAppBar(
                 title = { Text(stringResource(R.string.title_firmwares)) },
@@ -182,44 +167,52 @@ object FirmwareListScreen {
             )
             PullToRefreshBox(
                 isRefreshing = refreshing,
-                onRefresh = { scope.launch { model.catalogue.refresh() } },
+                onRefresh = { coroutineScope.launch { model.catalogue.refresh() } },
             ) {
-                LazyColumn(
-                    Modifier.fillMaxWidth(),
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    item {
-                        OutlinedTextField(
-                            search,
-                            { search = it },
-                            Modifier.fillMaxWidth(),
-                            label = {
-                                Text(
-                                    pluralStringResource(
-                                        R.plurals.firmware_search,
-                                        visible.size,
-                                        visible.size,
-                                    ),
-                                )
-                            },
-                            singleLine = true,
+                FilteredFirmwareList(
+                    order = order,
+                    onOrder = { selected ->
+                        order = selected
+                        model.settings.firmwareOrder = selected
+                    },
+                    scope = selectedScope,
+                    onScope = { selected ->
+                        selectedScopeStored = selected.storedValue
+                        model.settings.firmwareScope = selected.storedValue
+                    },
+                    scopes = scopes,
+                    filtersIndex = 1,
+                    beforeFilters = {
+                        item {
+                            OutlinedTextField(
+                                value = search,
+                                onValueChange = { search = it },
+                                modifier = Modifier.fillMaxWidth(),
+                                label = {
+                                    Text(
+                                        pluralStringResource(
+                                            R.plurals.firmware_search,
+                                            visible.size,
+                                            visible.size,
+                                        ),
+                                    )
+                                },
+                                singleLine = true,
+                            )
+                        }
+                    },
+                ) { picked ->
+                    val entries =
+                        order.sorted(
+                            FirmwareFilter(search)
+                                .matching(visible, model.settings.showBeta)
+                                .filter(picked::includes),
                         )
-                    }
-                    item {
-                        ScopePicker(
-                            order,
-                            { selected ->
-                                order = selected
-                                model.settings.firmwareOrder = selected
-                            },
-                            FirmwareFilter.scopes(visible),
-                            selectedScope,
-                            { selectedScopeKey = scopeKey(it) },
-                        )
-                    }
-                    item { FirmwareSummary(entries.size, catalogue?.builtAt, refreshing, error) }
-                    items(entries, key = CatalogueEntry::id) { entry ->
+                    item { FirmwareSummary(entries.size, catalogue?.builtAt, refreshing, error, order) }
+                    val firstUncounted =
+                        FirmwareOrder.firstUncounted(entries).takeIf { order == FirmwareOrder.MostInstalled }
+                    itemsIndexed(entries, key = { _, entry -> entry.id }) { index, entry ->
+                        if (index == firstUncounted) UncountedNote()
                         FirmwareCard(entry) { navigator.openFirmware(entry.id) }
                     }
                     if (entries.isEmpty()) {
@@ -249,28 +242,13 @@ object FirmwareListScreen {
     }
 }
 
-private fun scopeKey(scope: FirmwareScope) =
-    when (scope) {
-        FirmwareScope.All -> "all"
-        FirmwareScope.BuiltFromSource -> "built-from-source"
-        is FirmwareScope.Kind -> "kind:${scope.kind.lowercase()}"
-    }
-
-private fun savedScope(key: String) =
-    if (key.startsWith("kind:")) {
-        FirmwareScope.Kind(key.removePrefix("kind:"))
-    } else if (key == "built-from-source") {
-        FirmwareScope.BuiltFromSource
-    } else {
-        FirmwareScope.All
-    }
-
 @Composable
 private fun FirmwareSummary(
     count: Int,
     builtAt: java.time.Instant?,
     refreshing: Boolean,
     error: String?,
+    order: FirmwareOrder,
 ) = Column(Modifier.padding(horizontal = 4.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
     if (LocalReduceMotion.current) {
         Text(pluralStringResource(R.plurals.firmware_count, count, count), fontWeight = FontWeight.SemiBold)
@@ -294,78 +272,17 @@ private fun FirmwareSummary(
         }
     }
     error?.let { Text(it) }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun ScopePicker(
-    order: FirmwareOrder,
-    onOrder: (FirmwareOrder) -> Unit,
-    scopes: List<FirmwareScope>,
-    selected: FirmwareScope,
-    onScope: (FirmwareScope) -> Unit,
-) {
-    Row(
-        Modifier.horizontalScroll(rememberScrollState()),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        var orderExpanded by remember { mutableStateOf(false) }
-        ExposedDropdownMenuBox(orderExpanded, { orderExpanded = it }) {
-            AssistChip(
-                { orderExpanded = true },
-                {
-                    Text(
-                        if (order == FirmwareOrder.ByName) {
-                            stringResource(R.string.firmware_order_name)
-                        } else {
-                            stringResource(R.string.firmware_order_updated)
-                        },
-                    )
-                },
-                Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
-            )
-            ExposedDropdownMenu(orderExpanded, { orderExpanded = false }) {
-                DropdownMenuItem(
-                    { Text(stringResource(R.string.firmware_order_name)) },
-                    {
-                        onOrder(FirmwareOrder.ByName)
-                        orderExpanded = false
-                    },
-                )
-                DropdownMenuItem(
-                    { Text(stringResource(R.string.firmware_order_updated)) },
-                    {
-                        onOrder(FirmwareOrder.Updated)
-                        orderExpanded = false
-                    },
-                )
-            }
-        }
-        scopes.forEach { scope ->
-            val picked = scope == selected
-            AssistChip(
-                { onScope(scope) },
-                { Text(scope.label()) },
-                colors =
-                    AssistChipDefaults.assistChipColors(
-                        containerColor =
-                            if (picked) LocalStandardColors.current.ink else LocalStandardColors.current.control,
-                        labelColor = if (picked) LocalStandardColors.current.card else LocalStandardColors.current.ink,
-                    ),
-                modifier = Modifier.semantics { this.selected = picked },
-            )
-        }
-    }
+    if (order == FirmwareOrder.MostInstalled) Text(stringResource(R.string.firmware_installs_source))
 }
 
 @Composable
-private fun FirmwareScope.label() =
-    when (this) {
-        FirmwareScope.All -> stringResource(R.string.firmware_scope_all)
-        FirmwareScope.BuiltFromSource -> stringResource(R.string.firmware_scope_built_from_source)
-        is FirmwareScope.Kind -> FirmwareFilter.name(kind)
-    }
+private fun UncountedNote() =
+    Text(
+        stringResource(R.string.firmware_uncounted_note),
+        Modifier.padding(horizontal = 4.dp, vertical = 6.dp),
+        color = LocalStandardColors.current.secondaryInk,
+        style = MaterialTheme.typography.bodySmall,
+    )
 
 @Composable
 internal fun FirmwareCard(
@@ -377,7 +294,8 @@ internal fun FirmwareCard(
     val catalogue by model.catalogue.catalogueFlow.collectAsState()
     val colors = LocalStandardColors.current
     val isOnDevice = DeviceSummary.isOnFm1(entry, identity, model.history, catalogue?.entries.orEmpty())
-    val isSaved = model.library.stored(entry) != null || model.library.otherBuild(entry) != null
+    val savedCopies = model.library.savedCopies(entry)
+    val isSaved = model.library.isSaved(entry)
     Row(
         Modifier
             .fillMaxWidth()
@@ -407,7 +325,15 @@ internal fun FirmwareCard(
                 } else if (model.library.outdated(entry) != null) {
                     stringResource(R.string.firmware_update)
                 } else if (isSaved) {
-                    stringResource(R.string.firmware_saved)
+                    if (savedCopies.size > 1) {
+                        pluralStringResource(
+                            R.plurals.firmware_saved_copies,
+                            savedCopies.size,
+                            savedCopies.size,
+                        )
+                    } else {
+                        stringResource(R.string.firmware_saved)
+                    }
                 } else {
                     null
                 },
@@ -419,7 +345,14 @@ internal fun FirmwareCard(
             } else if (entry.beta) {
                 Tag(stringResource(R.string.firmware_test_version), true)
             }
-            entry.what?.let { Text(it, color = colors.secondaryInk, maxLines = 2, overflow = TextOverflow.Ellipsis) }
+            entry.what?.let {
+                Text(
+                    annotated(FirmwareDescription.runs(it)),
+                    color = colors.secondaryInk,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
     }
 }
