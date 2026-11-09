@@ -1039,7 +1039,7 @@ None blocking. P-D1 (automatic MIDIMON) is the one decision David may want to re
 **Wave 1** — run together
 - [x] 02 — `:fm1`: official releases, V16 identity, reinstalling the official firmware, error texts, flash chip IDs (depends on: none)
 - [x] 05 — `:model`: catalogue fields, lenient decoding, orders and scopes, list settings, words, descriptions, `StartUp.V16` (depends on: none)
-- [ ] 13 — Docs: architecture, NOTICE facts on MPL-2.0, AGENTS confirmation rule (depends on: none)
+- [x] 13 — Docs: architecture, NOTICE facts on MPL-2.0, AGENTS confirmation rule (depends on: none)
 
 **Wave 2** — run together
 - [ ] 03 — `:fm1`: update codes, leaving guides, flash chip support, sample packages with code (depends on: 02)

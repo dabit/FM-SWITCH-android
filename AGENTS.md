@@ -62,7 +62,7 @@ tests, mirroring FM1Kit's split: package, protocol, transport, updater.
   "I've saved anything I want to keep" tick; the same identity is an information notice and
   its install passes `confirmsSameIdentity`.
   "SWITCH FIRMWARE?" and "REINSTALL OR UPDATE?" are Retro confirmations.
-  Refuse V15 over V15. Installing over Open firmware needs an arming command first.
+  Refuse V15 over V15 and V16 over V16, unless the person says the FM-1 is really running a look-alike (TransitFM1). Installing over Open firmware needs an arming command first.
 
 **Firmware list.** Download `https://fm-1.drewr.dev/firmwares.json` (built daily by the iOS
 repo's `fm1-catalogue`). Ignore a list whose format is newer than the app understands

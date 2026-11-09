@@ -1,4 +1,4 @@
-status: pending
+status: done
 # 13 — Docs: architecture against iOS 0.2.1 and FM1Kit 0.6.0, NOTICE facts on MPL-2.0, AGENTS confirmation rule
 
 Depends on: None
