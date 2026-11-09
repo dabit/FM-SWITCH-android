@@ -1,4 +1,4 @@
-// Ported from FM1Kit 0.4.5 Protocol/FM1Identity.swift — MIT, Copyright (c) 2026 Drew Robinson; see fm1/LICENSE-FM1Kit.txt.
+// Ported from FM1Kit 0.6.0 Protocol/FM1Identity.swift — MIT, Copyright (c) 2026 Drew Robinson; see fm1/LICENSE-FM1Kit.txt.
 package dev.drewr.fm1.protocol
 
 class Fm1Identity private constructor(
@@ -7,6 +7,7 @@ class Fm1Identity private constructor(
     val version: Int,
     val armedBuildPrefix: String?,
 ) {
+    val isOfficial: Boolean get() = this == officialV15 || this == officialV16
     val isLoader: Boolean get() = model.startsWith(LOADER_PREFIX, ignoreCase = true)
     val isOpenFirmware: Boolean get() = (model == "FM-1" && version in 8_000_000..8_000_999) || model == "FM1_COMMUNITY"
     val hardwareModel: String get() =
@@ -41,6 +42,7 @@ class Fm1Identity private constructor(
         private const val ARMED_PREFIX_LENGTH = 16
         private const val REPLY_LENGTH = 34
         val officialV15 = parse("FM-1_015")!!
+        val officialV16 = parse("FM-1_016")!!
 
         fun parse(text: String): Fm1Identity? {
             val separator = text.lastIndexOf('_')

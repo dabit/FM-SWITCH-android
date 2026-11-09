@@ -1,4 +1,4 @@
-// Ported from FM1Kit 0.4.5 Tests/FM1KitTests/EdgeCaseTests.swift — MIT, Copyright (c) 2026 Drew Robinson; see fm1/LICENSE-FM1Kit.txt.
+// Ported from FM1Kit 0.6.0 Tests/FM1KitTests/EdgeCaseTests.swift — MIT, Copyright (c) 2026 Drew Robinson; see fm1/LICENSE-FM1Kit.txt.
 package dev.drewr.fm1.updater
 
 import dev.drewr.fm1.pkg.FwscPackage
@@ -84,5 +84,31 @@ class EdgeCaseTest {
             "No FM-1 found. Check the cable, and close any other app using it.",
             Fm1UpdateError.DeviceNotFound.message,
         )
+    }
+
+    @Test fun errorTextsSayKeepItOnAndNameMidimonFirst() {
+        assertTrue(Fm1UpdateError.Stalled(Fm1UpdateError.Phase.WRITING, 3).message!!.contains("don't switch it off"))
+        assertTrue(
+            Fm1UpdateError
+                .Disconnected(
+                    Fm1UpdateError.Phase.WRITING,
+                    3,
+                ).message!!
+                .contains("without switching it off"),
+        )
+        assertTrue(
+            Fm1UpdateError
+                .UnexpectedFinish(
+                    Fm1UpdateError.Phase.WRITING,
+                ).message!!
+                .contains("switched on"),
+        )
+        val bootloaderMismatch = Fm1UpdateError.BootloaderMismatch(1).message!!
+        assertTrue(bootloaderMismatch.contains("MIDIMON 0.4 or LOOM-8"))
+        assertTrue(bootloaderMismatch.indexOf("MIDIMON 0.4 or LOOM-8") < bootloaderMismatch.indexOf("from a Mac"))
+        assertTrue(bootloaderMismatch.contains("V16"))
+        assertTrue(Fm1UpdateError.PackageRefused(1).message!!.contains("TransitFM1"))
+        assertTrue(Fm1UpdateError.AlreadyInstalled("FM-1_015").message!!.contains("TransitFM1"))
+        assertTrue(!Fm1UpdateError.AlreadyInstalled("FM-1_916").message!!.contains("TransitFM1"))
     }
 }

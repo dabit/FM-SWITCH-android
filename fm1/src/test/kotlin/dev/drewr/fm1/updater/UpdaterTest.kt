@@ -1,4 +1,4 @@
-// Ported from FM1Kit 0.4.5 Tests/FM1KitTests/UpdaterTests.swift — MIT, Copyright (c) 2026 Drew Robinson; see fm1/LICENSE-FM1Kit.txt.
+// Ported from FM1Kit 0.6.0 Tests/FM1KitTests/UpdaterTests.swift — MIT, Copyright (c) 2026 Drew Robinson; see fm1/LICENSE-FM1Kit.txt.
 package dev.drewr.fm1.updater
 
 import dev.drewr.fm1.pkg.FwscPackage
@@ -150,6 +150,26 @@ class UpdaterTest {
             val file = packageFile("FM-1_015")
             sim.prepare(file)
             assertFailsWith<Fm1UpdateError.AlreadyInstalled> { Fm1Updater(sim, fastTiming()).install(file) }
+        }
+
+    @Test fun reinstallsTheOfficialFirmwareOverALookAlikeOnceConfirmed() =
+        runTest {
+            val sim =
+                simulator(this) {
+                    installedIdentity = Fm1Identity.officialV15
+                    refusesRunningFirmware = false
+                }
+            val file = packageFile("FM-1_015")
+            sim.prepare(file)
+            val updater = Fm1Updater(sim, fastTiming())
+            assertFailsWith<Fm1UpdateError.AlreadyInstalled> { updater.install(file) }
+
+            val events = mutableListOf<UpdateEvent>()
+            assertEquals(
+                Fm1Identity.officialV15,
+                updater.install(file, InstallOptions(confirmsReinstallingOfficial = true)) { events += it },
+            )
+            assertTrue(events.any { it is UpdateEvent.Connected })
         }
 
     @Test fun refusesAPackageForAnotherModel() =

@@ -1,4 +1,4 @@
-// Ported from FM1Kit 0.4.5 Transport/SimulatedFM1.swift, SimulatedFM1+Transport.swift and SimulatedFM1+Commands.swift — MIT, Copyright (c) 2026 Drew Robinson; see fm1/LICENSE-FM1Kit.txt.
+// Ported from FM1Kit 0.6.0 Transport/SimulatedFM1.swift, SimulatedFM1+Transport.swift and SimulatedFM1+Commands.swift — MIT, Copyright (c) 2026 Drew Robinson; see fm1/LICENSE-FM1Kit.txt.
 package dev.drewr.fm1.transport
 
 import dev.drewr.fm1.pkg.FwscPackage
@@ -209,7 +209,7 @@ class SimulatedFm1(
         }
         if (
             options.refusesRunningFirmware && currentIdentity == packageToInstall.identity &&
-            currentIdentity == Fm1Identity.officialV15
+            currentIdentity?.isOfficial == true
         ) {
             log("${packageToInstall.product} is already running, so the package is refused.")
             return

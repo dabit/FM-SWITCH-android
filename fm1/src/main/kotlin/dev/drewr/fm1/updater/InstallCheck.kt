@@ -1,4 +1,4 @@
-// Ported from FM1Kit 0.4.5 Updater/InstallCheck.swift — MIT, Copyright (c) 2026 Drew Robinson; see fm1/LICENSE-FM1Kit.txt.
+// Ported from FM1Kit 0.6.0 Updater/InstallCheck.swift — MIT, Copyright (c) 2026 Drew Robinson; see fm1/LICENSE-FM1Kit.txt.
 package dev.drewr.fm1.updater
 
 import dev.drewr.fm1.pkg.FwscPackage
@@ -13,6 +13,8 @@ data class InstallCheck(
     val capability: Fm1Capability?,
     val kind: InstallKind,
 ) {
+    val canReinstallOfficial: Boolean get() = kind == InstallKind.REINSTALL && capability == null
+
     companion object {
         fun of(
             device: Fm1Identity,
@@ -29,7 +31,7 @@ data class InstallCheck(
 
                     capability != null -> InstallKind.SWITCHING_FIRMWARE
 
-                    device == packageFile.identity && device == Fm1Identity.officialV15 -> InstallKind.REINSTALL
+                    device == packageFile.identity && device.isOfficial -> InstallKind.REINSTALL
 
                     device == packageFile.identity -> InstallKind.SAME_IDENTITY
 
@@ -44,4 +46,5 @@ data class InstallOptions(
     val confirmsSwitchingFirmware: Boolean = false,
     val confirmsSameIdentity: Boolean = false,
     val buildId: BuildId? = null,
+    val confirmsReinstallingOfficial: Boolean = false,
 )

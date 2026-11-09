@@ -1,4 +1,4 @@
-status: pending
+status: done
 # 02 — `:fm1`: official releases, V16 identity, reinstalling the official firmware, error texts, flash chip IDs
 
 Depends on: None

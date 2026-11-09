@@ -1,4 +1,4 @@
-// Ported from FM1Kit 0.4.5 Updater/FM1Updater.swift — MIT, Copyright (c) 2026 Drew Robinson; see fm1/LICENSE-FM1Kit.txt.
+// Ported from FM1Kit 0.6.0 Updater/FM1Updater.swift — MIT, Copyright (c) 2026 Drew Robinson; see fm1/LICENSE-FM1Kit.txt.
 package dev.drewr.fm1.updater
 
 import dev.drewr.fm1.pkg.FwscPackage
@@ -188,7 +188,9 @@ class Fm1Updater(
                 val check = checkUnlocked(packageFile, device, buildId)
                 when (check.kind) {
                     InstallKind.REINSTALL -> {
-                        throw Fm1UpdateError.AlreadyInstalled(device.identity.text)
+                        if (!(check.canReinstallOfficial && options.confirmsReinstallingOfficial)) {
+                            throw Fm1UpdateError.AlreadyInstalled(device.identity.text)
+                        }
                     }
 
                     InstallKind.SWITCHING_FIRMWARE -> {

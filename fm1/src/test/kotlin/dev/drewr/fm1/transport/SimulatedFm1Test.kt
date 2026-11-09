@@ -1,3 +1,4 @@
+// Ported from FM1Kit 0.6.0 Transport/SimulatedFM1.swift — MIT, Copyright (c) 2026 Drew Robinson; see fm1/LICENSE-FM1Kit.txt.
 package dev.drewr.fm1.transport
 
 import dev.drewr.fm1.pkg.FwscPackage
@@ -7,14 +8,20 @@ import dev.drewr.fm1.protocol.Fm1Identity
 import dev.drewr.fm1.protocol.Fm1Message
 import dev.drewr.fm1.protocol.ReadRequest
 import dev.drewr.fm1.testing.SamplePackage
+import dev.drewr.fm1.updater.Fm1UpdateError
+import dev.drewr.fm1.updater.Fm1Updater
+import dev.drewr.fm1.updater.InstallOptions
+import dev.drewr.fm1.updater.UpdaterTiming
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.ZERO
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -80,9 +87,46 @@ class SimulatedFm1Test {
             )
         }
 
+    @Test fun v16RefusesItsOwnIdentity() =
+        runTest {
+            val packageFile = FwscPackage(SamplePackage.file("FM-1_016"))
+            val simulator =
+                SimulatedFm1(
+                    options().apply { installedIdentity = Fm1Identity.officialV16 },
+                    this,
+                )
+            simulator.prepare(packageFile)
+            val events = mutableListOf<dev.drewr.fm1.updater.UpdateEvent>()
+            assertFailsWith<Fm1UpdateError> {
+                Fm1Updater(simulator, timing()).install(
+                    packageFile,
+                    InstallOptions(confirmsReinstallingOfficial = true),
+                ) { events += it }
+            }
+            assertTrue(events.none { it is dev.drewr.fm1.updater.UpdateEvent.WaitingForLoader })
+            assertTrue(simulator.events.any { it.contains("already running") })
+        }
+
     private fun options() =
         SimulatedFm1.Options().apply {
             requestInterval = ZERO
             rebootDuration = ZERO
         }
+
+    private fun timing() =
+        UpdaterTiming(
+            ZERO,
+            2.seconds,
+            ZERO,
+            2.seconds,
+            2.seconds,
+            ZERO,
+            2.seconds,
+            ZERO,
+            ZERO,
+            1.milliseconds,
+            1.milliseconds,
+            1.milliseconds,
+            handshakeAttempts = 2,
+        )
 }
