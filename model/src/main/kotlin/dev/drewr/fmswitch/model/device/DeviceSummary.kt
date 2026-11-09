@@ -46,7 +46,9 @@ data class DeviceSummary(
                 }
 
                 is State.Running -> {
-                    current.name?.replace("the official firmware (V15)", "V15")?.uppercase()
+                    current.name
+                        ?.replace(Regex("the official firmware \\((V1[56])\\)"), "${'$'}1")
+                        ?.uppercase()
                         ?: identity.orEmpty()
                 }
 
@@ -72,6 +74,8 @@ data class DeviceSummary(
             lastInstall?.let { "${it.first} ${it.second}" }
                 ?: if (identity == Fm1Identity.officialV15) {
                     "the official firmware (V15)"
+                } else if (identity == Fm1Identity.officialV16) {
+                    "the official firmware (V16)"
                 } else if (catalogueMatches.size == 1) {
                     catalogueMatches.single().let { (name, version) -> listOfNotNull(name, version).joinToString(" ") }
                 } else {

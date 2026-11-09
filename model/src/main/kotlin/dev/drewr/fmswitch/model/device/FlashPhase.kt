@@ -14,7 +14,7 @@ sealed class FlashPhase {
         val fraction: Double,
     ) : FlashPhase()
 
-    data class Verifying(
+    data class SecondPass(
         val fraction: Double,
     ) : FlashPhase()
 
@@ -36,7 +36,7 @@ sealed class FlashPhase {
                 is Staging -> "CHECKING PACKAGE"
                 WaitingForLoader -> "WAITING FOR LOADER"
                 is Writing -> "WRITING"
-                is Verifying -> "VERIFYING"
+                is SecondPass -> "WRITING PASS 2"
                 Rebooting -> "REBOOTING"
                 is Succeeded -> "DONE"
                 is Failed -> "STOPPED"

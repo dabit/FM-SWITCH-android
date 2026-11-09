@@ -39,7 +39,6 @@
     <string name="installing_now">Now</string>
     <string name="install_stage_getting_ready">Getting ready</string>
     <string name="install_stage_installing">Installing</string>
-    <string name="install_stage_checking">Checking</string>
     <string name="install_stage_restarting">Restarting</string>
     <string name="install_done_title">%1$s is ready to play</string>
     <string name="install_done_body">Your FM-1 says it\'s running %1$s. It\'s safe to unplug.</string>

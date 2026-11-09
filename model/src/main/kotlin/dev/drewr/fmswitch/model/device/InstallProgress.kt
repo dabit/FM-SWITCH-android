@@ -10,7 +10,6 @@ data class InstallProgress(
     ) {
         GettingReady("Getting ready"),
         Installing("Installing"),
-        Checking("Checking"),
         Restarting("Restarting"),
     }
 
@@ -39,7 +38,7 @@ data class InstallProgress(
                     is FlashPhase.Staging -> point(0.0, 0.10, phase.requests / 75.0) to Stage.GettingReady
                     FlashPhase.WaitingForLoader -> 0.11 to Stage.GettingReady
                     is FlashPhase.Writing -> point(0.12, 0.85, phase.fraction) to Stage.Installing
-                    is FlashPhase.Verifying -> point(0.85, 0.97, phase.fraction) to Stage.Checking
+                    is FlashPhase.SecondPass -> point(0.85, 0.97, phase.fraction) to Stage.Installing
                     FlashPhase.Rebooting -> 0.985 to Stage.Restarting
                     is FlashPhase.Succeeded -> 1.0 to Stage.Restarting
                     is FlashPhase.Failed -> 0.0 to Stage.GettingReady

@@ -43,7 +43,7 @@ class StandardLookTest {
                 FlashPhase.Staging(40),
                 FlashPhase.WaitingForLoader,
                 FlashPhase.Writing(.5),
-                FlashPhase.Verifying(.5),
+                FlashPhase.SecondPass(.5),
                 FlashPhase.Rebooting,
                 FlashPhase.Succeeded("FM-1_901"),
             ).map {
@@ -56,7 +56,7 @@ class StandardLookTest {
                 InstallProgress.Stage.GettingReady,
                 InstallProgress.Stage.GettingReady,
                 InstallProgress.Stage.Installing,
-                InstallProgress.Stage.Checking,
+                InstallProgress.Stage.Installing,
                 InstallProgress.Stage.Restarting,
                 InstallProgress.Stage.Restarting,
             ),
@@ -118,6 +118,16 @@ class StandardLookTest {
             "the official firmware (V15)",
             DeviceSummary.resolvedName(dev.drewr.fm1.protocol.Fm1Identity.officialV15),
         )
+        val v16 =
+            DeviceSummary.from(
+                dev.drewr.fm1.protocol.Fm1Identity.officialV16,
+                dev.drewr.fmswitch.model.history.FlashHistory(null, kotlinx.coroutines.Dispatchers.Unconfined) {
+                    Instant.EPOCH
+                },
+                emptyList(),
+            )
+        assertEquals("Connected, running the official firmware (V16)", v16.statusLine)
+        assertEquals("V16", v16.screenTitle)
     }
 
     @Test

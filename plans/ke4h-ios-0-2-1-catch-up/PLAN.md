@@ -1052,7 +1052,7 @@ None blocking. P-D1 (automatic MIDIMON) is the one decision David may want to re
 - [x] 10 — `:app` firmware list and My firmwares (depends on: 05, 06, 09)
 
 **Wave 4**
-- [ ] 08 — `:model` flash job and controller: pass 2, late returns, guides and start-up, flash chip state (depends on: 04, 07)
+- [x] 08 — `:model` flash job and controller: pass 2, late returns, guides and start-up, flash chip state (depends on: 04, 07)
 
 **Wave 5** — run together
 - [ ] 11 — `:app` firmware page (depends on: 05, 06, 08, 09, 10)

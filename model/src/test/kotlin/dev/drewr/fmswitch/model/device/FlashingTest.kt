@@ -1,5 +1,7 @@
 package dev.drewr.fmswitch.model.device
 
+import dev.drewr.fm1.pkg.FwscPackage
+import dev.drewr.fm1.protocol.Fm1FlashChip
 import dev.drewr.fm1.protocol.Fm1Identity
 import dev.drewr.fm1.testing.SamplePackage
 import dev.drewr.fm1.transport.MidiConnection
@@ -28,6 +30,7 @@ import java.time.Instant
 import kotlin.io.path.createTempDirectory
 import kotlin.io.path.createTempFile
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.milliseconds
@@ -55,6 +58,10 @@ class FlashingTest {
         fun plug() {
             isPlugged = true
             changes.tryEmit(Unit)
+        }
+
+        fun prepare(packageFile: FwscPackage) {
+            simulated.prepare(packageFile)
         }
     }
 
@@ -330,11 +337,11 @@ class FlashingTest {
             controller.flash(listOf(saved), confirmsSwitchingFirmware = true)
             testScheduler.advanceTimeBy(60_000)
             runCurrent()
-            val verifying = controller.log.value.indexOfFirst { it.contains("reading it back") }
+            val secondPass = controller.log.value.indexOfFirst { it.contains("going over it again") }
             val rebooting = controller.log.value.indexOfFirst { it.contains("Rebooting") }
             assertTrue(controller.job.value?.phase is FlashPhase.Succeeded)
-            assertTrue(verifying >= 0 && verifying < rebooting)
-            assertTrue(controller.log.value.count { it.contains("reading it back") } == 1)
+            assertTrue(secondPass >= 0 && secondPass < rebooting)
+            assertTrue(controller.log.value.count { it.contains("going over it again") } == 1)
         }
 
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
@@ -607,6 +614,172 @@ class FlashingTest {
             val failed = controller.job.value?.phase as? FlashPhase.Failed
             assertTrue(failed?.message?.contains("Install V15 first") == true)
             assertFalse(controller.job.value?.needsAStepFirst ?: true)
+        }
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    @Test
+    fun aLateLossStillFinishesWhenTheFm1ComesBackRunningIt() =
+        runTest {
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            val library =
+                FirmwareLibrary(createTempDirectory().toFile(), {
+                    FileInputStream(File(System.getProperty("fm1.v15")))
+                }, dispatcher) { Instant.EPOCH }
+            library.load()
+            val target = library.add(SamplePackage.file("FM-1_916"), "Felucca")
+            val history = FlashHistory(null, dispatcher) { Instant.EPOCH }
+            val transport = ControllableTransport(SimulatedFm1(scope = backgroundScope))
+            transport.prepare(library.loadPackage(target))
+            val controller =
+                DeviceController(library, history, InMemoryAppSettings(), backgroundScope) { _, _ -> transport }
+            controller.configure(TransportKind.Simulated)
+            testScheduler.advanceTimeBy(UpdaterTiming.standard.fullIdentityWait + 1.milliseconds)
+            runCurrent()
+            controller.flash(listOf(target), confirmsSwitchingFirmware = true)
+            repeat(20) {
+                if (controller.job.value?.phase !is FlashPhase.Rebooting) {
+                    testScheduler.advanceTimeBy(1.seconds)
+                    runCurrent()
+                }
+            }
+            assertTrue(controller.job.value?.phase is FlashPhase.Rebooting)
+            transport.unplug()
+            testScheduler.advanceTimeBy(UpdaterTiming.standard.firmwareBoot + UpdaterTiming.standard.returnSearch)
+            runCurrent()
+            transport.plug()
+            testScheduler.advanceTimeBy(2.seconds)
+            runCurrent()
+            assertEquals("FM-1_916", (controller.job.value?.phase as? FlashPhase.Succeeded)?.identity)
+            assertTrue(controller.log.value.any { it.contains("Looking for the FM-1") })
+            assertEquals("FM-1_916", history.last?.product)
+        }
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    @Test
+    fun anInstallFromV16IsRemembered() =
+        runTest {
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            val library =
+                FirmwareLibrary(createTempDirectory().toFile(), {
+                    FileInputStream(File(System.getProperty("fm1.v15")))
+                }, dispatcher) { Instant.EPOCH }
+            library.load()
+            val controller =
+                DeviceController(
+                    library,
+                    FlashHistory(null, dispatcher) { Instant.EPOCH },
+                    InMemoryAppSettings(),
+                    backgroundScope,
+                ) { _, _ ->
+                    SimulatedFm1(
+                        SimulatedFm1.Options().also {
+                            it.installedIdentity = Fm1Identity.officialV16
+                        },
+                        backgroundScope,
+                    )
+                }
+            controller.configure(TransportKind.Simulated)
+            testScheduler.advanceTimeBy(1)
+            runCurrent()
+            assertEquals(Fm1Identity.officialV16, controller.identity.value)
+            controller.flash(listOf(requireNotNull(library.official)), confirmsSwitchingFirmware = true)
+            testScheduler.advanceTimeBy(60.seconds)
+            runCurrent()
+            assertTrue(controller.job.value?.startedOnV16 == true)
+            assertEquals("FM-1_015", (controller.job.value?.phase as? FlashPhase.Succeeded)?.identity)
+        }
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    @Test
+    fun installingV15SetsMVavesStartUp() =
+        runTest {
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            val library =
+                FirmwareLibrary(createTempDirectory().toFile(), {
+                    FileInputStream(File(System.getProperty("fm1.v15")))
+                }, dispatcher) { Instant.EPOCH }
+            library.load()
+            val settings =
+                InMemoryAppSettings().also {
+                    it.startUp = dev.drewr.fmswitch.model.settings.StartUp.MBootloader
+                }
+            val history = FlashHistory(null, dispatcher) { Instant.EPOCH }
+            val controller =
+                DeviceController(library, history, settings, backgroundScope) { _, options ->
+                    SimulatedFm1(options, backgroundScope)
+                }
+            controller.configure(TransportKind.Simulated)
+            testScheduler.advanceTimeBy(UpdaterTiming.standard.fullIdentityWait + 1.milliseconds)
+            runCurrent()
+            controller.flash(listOf(requireNotNull(library.official)), confirmsSwitchingFirmware = true)
+            testScheduler.advanceTimeBy(60.seconds)
+            runCurrent()
+            assertEquals("FM-1_015", (controller.job.value?.phase as? FlashPhase.Succeeded)?.identity)
+            assertEquals("v15", history.last?.guide?.bootArea)
+            assertEquals(dev.drewr.fmswitch.model.settings.StartUp.MVave, settings.startUp)
+        }
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    @Test
+    fun installingV16SetsV16sStartUp() =
+        runTest {
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            val library =
+                FirmwareLibrary(createTempDirectory().toFile(), {
+                    FileInputStream(File(System.getProperty("fm1.v15")))
+                }, dispatcher) { Instant.EPOCH }
+            library.load()
+            val loader = FwscPackage(File(System.getProperty("fm1.v15")).readBytes()).loaderBytes
+            val v16 = library.add(SamplePackage.withLoader("FM-1_016", loader), "V16")
+            val settings =
+                InMemoryAppSettings().also {
+                    it.startUp = dev.drewr.fmswitch.model.settings.StartUp.MBootloader
+                }
+            val history = FlashHistory(null, dispatcher) { Instant.EPOCH }
+            val controller =
+                DeviceController(library, history, settings, backgroundScope) { _, options ->
+                    SimulatedFm1(options, backgroundScope)
+                }
+            controller.configure(TransportKind.Simulated)
+            testScheduler.advanceTimeBy(UpdaterTiming.standard.fullIdentityWait + 1.milliseconds)
+            runCurrent()
+            controller.flash(listOf(v16), confirmsSwitchingFirmware = true)
+            testScheduler.advanceTimeBy(60.seconds)
+            runCurrent()
+            assertEquals("FM-1_016", (controller.job.value?.phase as? FlashPhase.Succeeded)?.identity)
+            assertEquals("v16", history.last?.guide?.bootArea)
+            assertEquals(dev.drewr.fmswitch.model.settings.StartUp.V16, settings.startUp)
+        }
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    @Test
+    fun scanningKeepsTheFlashChip() =
+        runTest {
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            val library =
+                FirmwareLibrary(createTempDirectory().toFile(), {
+                    FileInputStream(File(System.getProperty("fm1.v15")))
+                }, dispatcher) { Instant.EPOCH }
+            library.load()
+            val controller =
+                DeviceController(
+                    library,
+                    FlashHistory(null, dispatcher) { Instant.EPOCH },
+                    InMemoryAppSettings(),
+                    backgroundScope,
+                ) { _, _ ->
+                    SimulatedFm1(
+                        SimulatedFm1.Options().also {
+                            it.flashChipId = Fm1FlashChip.UC25HQ80
+                        },
+                        backgroundScope,
+                    )
+                }
+            controller.configure(TransportKind.Simulated)
+            testScheduler.advanceTimeBy(UpdaterTiming.standard.fullIdentityWait + 1.milliseconds)
+            runCurrent()
+            assertEquals("FM-1_900", controller.identity.value?.text)
+            assertEquals(Fm1FlashChip.UC25HQ80, controller.flashChipId.value)
         }
 
     @Test fun aStallBeforeTheInstallStartsMightBeARefusal() {

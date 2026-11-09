@@ -1,4 +1,4 @@
-status: pending
+status: done
 # 08 — `:model` flash job and controller: pass 2, late returns, guides and start-up after an install, flash chip state, V16 summary
 
 Depends on: 04, 07

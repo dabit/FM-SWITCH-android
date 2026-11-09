@@ -281,7 +281,6 @@ private val InstallProgress.Stage.stringRes: Int
         when (this) {
             InstallProgress.Stage.GettingReady -> R.string.install_stage_getting_ready
             InstallProgress.Stage.Installing -> R.string.install_stage_installing
-            InstallProgress.Stage.Checking -> R.string.install_stage_checking
             InstallProgress.Stage.Restarting -> R.string.install_stage_restarting
         }
 
