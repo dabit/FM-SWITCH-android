@@ -90,7 +90,11 @@ class CatalogueStore(
     }
 
     companion object {
-        private val json = Json { ignoreUnknownKeys = true }
+        internal val json =
+            Json {
+                ignoreUnknownKeys = true
+                coerceInputValues = true
+            }
 
         private fun atomicWrite(
             file: File,

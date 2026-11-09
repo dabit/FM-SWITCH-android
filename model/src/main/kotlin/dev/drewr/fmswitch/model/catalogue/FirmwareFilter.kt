@@ -73,23 +73,77 @@ sealed class FirmwareScope {
             is Kind -> FirmwareFilter.isKind(kind, entry)
             BuiltFromSource -> entry.isBuiltFromSource
         }
+
+    val storedValue
+        get() =
+            when (this) {
+                All -> "all"
+                is Kind -> "kind:$kind"
+                BuiltFromSource -> "builtFromSource"
+            }
+
+    fun offered(scopes: List<FirmwareScope>) = if (this in scopes) this else All
+
+    companion object {
+        fun fromStored(value: String?): FirmwareScope? =
+            when {
+                value == "all" -> {
+                    All
+                }
+
+                value == "builtFromSource" -> {
+                    BuiltFromSource
+                }
+
+                value?.startsWith("kind:") == true && value.removePrefix("kind:").isNotEmpty() -> {
+                    Kind(value.removePrefix("kind:"))
+                }
+
+                else -> {
+                    null
+                }
+            }
+    }
 }
 
 enum class FirmwareOrder {
     ByName,
     Updated,
+    MostInstalled,
     ;
 
     fun sorted(entries: List<CatalogueEntry>) =
-        if (this == ByName) {
-            entries
-        } else {
-            entries
-                .withIndex()
-                .sortedWith(
-                    compareByDescending<IndexedValue<CatalogueEntry>> {
-                        it.value.date.orEmpty()
-                    }.thenBy { it.index },
-                ).map { it.value }
+        when (this) {
+            ByName -> {
+                entries
+            }
+
+            Updated -> {
+                entries
+                    .withIndex()
+                    .sortedWith(
+                        compareByDescending<IndexedValue<CatalogueEntry>> {
+                            it.value.date.orEmpty()
+                        }.thenBy { it.index },
+                    ).map { it.value }
+            }
+
+            MostInstalled -> {
+                entries
+                    .withIndex()
+                    .sortedWith(
+                        compareByDescending<IndexedValue<CatalogueEntry>> {
+                            it.value.installs ?: -1
+                        }.thenBy { it.index },
+                    ).map { it.value }
+            }
         }
+
+    companion object {
+        fun firstUncounted(entries: List<CatalogueEntry>): Int? =
+            entries
+                .takeIf { it.any { entry -> entry.installs != null } }
+                ?.indexOfFirst { it.installs == null }
+                ?.takeIf { it >= 0 }
+    }
 }

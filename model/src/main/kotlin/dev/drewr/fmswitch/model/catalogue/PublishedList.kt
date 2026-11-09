@@ -53,6 +53,7 @@ class PublishedList(
             Json {
                 ignoreUnknownKeys =
                     true
+                coerceInputValues = true
             }
     }
 }

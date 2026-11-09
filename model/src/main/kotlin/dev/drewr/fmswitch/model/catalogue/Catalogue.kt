@@ -65,6 +65,8 @@ data class CatalogueEntry(
     val stars: Int? = null,
     val licence: String? = null,
     val sourceBuild: SourceBuild? = null,
+    val installs: Int? = null,
+    val flashChip: HubFlashChip? = null,
 ) {
     val requiresOfficialFirmware get() = loader.equals("mvave", ignoreCase = true)
     val isDownloadable get() = packageURL != null
@@ -107,13 +109,14 @@ val CatalogueEntry.listedOn get() =
         "None: added from a file"
     } else {
         listOfNotNull(
-            "Firmware hub".takeIf { listing and Listing.HUB != 0 },
+            "The Firmware Hub".takeIf { listing and Listing.HUB != 0 },
             "fm1-editor.com".takeIf { listing and Listing.EDITOR != 0 },
             "FM1 Resource Hub".takeIf {
                 listing and
                     Listing.RESOURCE_HUB !=
                     0
             },
+            "mutant.cloud".takeIf { listing and Listing.MUTANT_CLOUD != 0 },
         ).joinToString(" + ")
     }
 val CatalogueEntry.sourceBuildSummary get() =
@@ -127,7 +130,7 @@ val CatalogueEntry.packageSource get() =
         "A file you added"
     } else {
         when (packageOrigin) {
-            PackageOrigin.Hub -> "Firmware hub mirror"
+            PackageOrigin.Hub -> "The Firmware Hub mirror"
             PackageOrigin.GithubRelease -> "GitHub release"
             PackageOrigin.PublisherManifest -> "The publisher's site"
             PackageOrigin.ProjectPage -> "The project's page"
@@ -140,6 +143,7 @@ object Listing {
     const val HUB = 1
     const val EDITOR = 2
     const val RESOURCE_HUB = 4
+    const val MUTANT_CLOUD = 8
 }
 
 @Serializable enum class PackageOrigin {

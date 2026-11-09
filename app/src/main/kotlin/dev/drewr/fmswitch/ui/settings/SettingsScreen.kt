@@ -359,6 +359,7 @@ private fun startUpName(value: StartUp) =
     stringResource(
         when (value) {
             StartUp.MVave -> R.string.settings_startup_mvave
+            StartUp.V16 -> R.string.settings_startup_v16
             StartUp.MBootloader -> R.string.settings_startup_mbootloader
             StartUp.OpenFirmware -> R.string.settings_startup_open
             StartUp.NotSure -> R.string.settings_startup_unsure

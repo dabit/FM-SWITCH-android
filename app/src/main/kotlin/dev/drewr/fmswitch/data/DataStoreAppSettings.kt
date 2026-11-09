@@ -77,6 +77,18 @@ class DataStoreAppSettings private constructor(
         get() = FirmwareOrder.entries.firstOrNull { it.name == values[FIRMWARE_ORDER] } ?: FirmwareOrder.ByName
         set(value) = save(FIRMWARE_ORDER, value.name)
 
+    override var firmwareScope: String?
+        get() = values[FIRMWARE_SCOPE]
+        set(value) = saveNullable(FIRMWARE_SCOPE, value)
+
+    override var myFirmwaresOrder: FirmwareOrder
+        get() = FirmwareOrder.entries.firstOrNull { it.name == values[MY_FIRMWARES_ORDER] } ?: FirmwareOrder.ByName
+        set(value) = save(MY_FIRMWARES_ORDER, value.name)
+
+    override var myFirmwaresScope: String?
+        get() = values[MY_FIRMWARES_SCOPE]
+        set(value) = saveNullable(MY_FIRMWARES_SCOPE, value)
+
     override var simulatedRecoveryMode: Boolean
         get() = values[SIMULATED_RECOVERY_MODE] ?: false
         set(value) = save(SIMULATED_RECOVERY_MODE, value)
@@ -134,6 +146,9 @@ class DataStoreAppSettings private constructor(
         val ALWAYS_VIA_OFFICIAL = booleanPreferencesKey("alwaysViaOfficial")
         val START_UP = stringPreferencesKey("startUp")
         val FIRMWARE_ORDER = stringPreferencesKey("firmwareOrder")
+        val FIRMWARE_SCOPE = stringPreferencesKey("firmwareScope")
+        val MY_FIRMWARES_ORDER = stringPreferencesKey("myFirmwaresOrder")
+        val MY_FIRMWARES_SCOPE = stringPreferencesKey("myFirmwaresScope")
         val SIMULATED_RECOVERY_MODE = booleanPreferencesKey("simulatedRecoveryMode")
         val SIMULATED_CABLE_PULL = booleanPreferencesKey("simulatedCablePull")
         val SIMULATED_READS_BACKWARDS = booleanPreferencesKey("simulatedReadsBackwards")

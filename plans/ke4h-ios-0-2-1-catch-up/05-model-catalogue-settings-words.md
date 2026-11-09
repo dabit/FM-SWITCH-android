@@ -1,4 +1,4 @@
-status: pending
+status: done
 # 05 — `:model`: catalogue fields, lenient decoding, orders and scopes, list settings, flash chip words, descriptions, `StartUp.V16`
 
 Depends on: None
