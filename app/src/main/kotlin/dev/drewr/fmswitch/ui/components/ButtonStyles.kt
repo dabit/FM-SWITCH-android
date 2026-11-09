@@ -15,7 +15,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -47,6 +49,37 @@ fun SecondaryButton(
     LocalStandardColors.current.control,
     LocalStandardColors.current.ink,
 )
+
+@Composable
+fun DangerButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+) {
+    val danger = LocalStandardColors.current.danger
+    StandardButton(
+        text,
+        onClick,
+        modifier.drawBehind {
+            val stroke = 1.5.dp.toPx()
+            drawRoundRect(
+                color = danger,
+                topLeft = Offset(stroke / 2, stroke / 2),
+                size = size.copy(width = size.width - stroke, height = size.height - stroke),
+                cornerRadius =
+                    androidx.compose.ui.geometry
+                        .CornerRadius(14.dp.toPx()),
+                style =
+                    androidx.compose.ui.graphics.drawscope
+                        .Stroke(stroke),
+            )
+        },
+        enabled,
+        Color.Transparent,
+        danger,
+    )
+}
 
 @Composable
 private fun StandardButton(

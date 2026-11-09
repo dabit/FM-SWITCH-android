@@ -32,6 +32,8 @@ object Palette {
     const val WARNING_INK_DARK = 0xFFFFC58A
     const val WARNING_BACKGROUND_LIGHT = 0xFFFFF4E5
     const val WARNING_BACKGROUND_DARK = 0xFF3A2610
+    const val DANGER_LIGHT = 0xFFA8380A
+    const val DANGER_DARK = 0xFFFF9259
 }
 
 internal fun contrastRatio(

@@ -1,4 +1,4 @@
-status: pending
+status: done
 # 09 — `:app` shared UI pieces: danger colour and button, flash chip notice, styled descriptions, Settings copy
 
 Depends on: 05

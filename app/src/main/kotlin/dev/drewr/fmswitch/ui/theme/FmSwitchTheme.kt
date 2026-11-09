@@ -27,11 +27,13 @@ data class StandardColors(
     val goodBackground: Color,
     val warningInk: Color,
     val warningBackground: Color,
+    val danger: Color,
 )
 
 val LocalStandardColors =
     staticCompositionLocalOf {
         StandardColors(
+            Color.Unspecified,
             Color.Unspecified,
             Color.Unspecified,
             Color.Unspecified,
@@ -102,4 +104,5 @@ private fun standardColors(dark: Boolean): StandardColors =
         goodBackground = Color(if (dark) Palette.GOOD_BACKGROUND_DARK else Palette.GOOD_BACKGROUND_LIGHT),
         warningInk = Color(if (dark) Palette.WARNING_INK_DARK else Palette.WARNING_INK_LIGHT),
         warningBackground = Color(if (dark) Palette.WARNING_BACKGROUND_DARK else Palette.WARNING_BACKGROUND_LIGHT),
+        danger = Color(if (dark) Palette.DANGER_DARK else Palette.DANGER_LIGHT),
     )

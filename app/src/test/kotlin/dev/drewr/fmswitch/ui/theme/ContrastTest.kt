@@ -31,6 +31,8 @@ class ContrastTest {
                 Palette.GOOD_INK_DARK to Palette.GOOD_BACKGROUND_DARK,
                 Palette.WARNING_INK_LIGHT to Palette.WARNING_BACKGROUND_LIGHT,
                 Palette.WARNING_INK_DARK to Palette.WARNING_BACKGROUND_DARK,
+                Palette.DANGER_LIGHT to Palette.CARD_LIGHT,
+                Palette.DANGER_DARK to Palette.CARD_DARK,
                 0xFFFFFFFF to Palette.ACCENT,
                 0xFFFFFFFF to Palette.FIRMWARES,
                 0xFFFFFFFF to Palette.SAVE,
