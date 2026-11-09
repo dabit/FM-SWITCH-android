@@ -1,9 +1,9 @@
-// Ported from FM1Kit 0.4.5 Package/SamplePackage.swift — MIT, Copyright (c) 2026 Drew Robinson; see fm1/LICENSE-FM1Kit.txt.
+// Ported from FM1Kit 0.6.0 Package/SamplePackage.swift — MIT, Copyright (c) 2026 Drew Robinson; see fm1/LICENSE-FM1Kit.txt.
 package dev.drewr.fm1.testing
 
+import dev.drewr.fm1.pkg.ApplicationArea
 import dev.drewr.fm1.pkg.Crc16
 import dev.drewr.fm1.pkg.Decipher
-import dev.drewr.fm1.pkg.FwscPackage
 
 object SamplePackage {
     data class Part(
@@ -100,6 +100,78 @@ object SamplePackage {
             logicalImage.copyOfRange(20 * 0x2F, logicalImage.size).toList()
         return output.toByteArray()
     }
+
+    fun firmwareWithCode(
+        code: ByteArray,
+        product: String = "FM-1_378001",
+    ): ByteArray = firmwareWithAppRecord(code, 0x200, code.size, product)
+
+    fun firmwareWithAppRecord(
+        code: ByteArray,
+        address: Int,
+        length: Int,
+        product: String = "FM-1_378001",
+    ): ByteArray {
+        val area = applicationArea(code, address, length)
+        val flash = ByteArray(0x4000 + area.size) { 0xFF.toByte() }
+        area.copyInto(flash, 0x4000)
+        val image =
+            image(
+                listOf(Part.flash(0x8000), Part.loader()),
+                contents = mapOf(0 to flash),
+            )
+        return file(image, product)
+    }
+
+    fun withLoader(
+        product: String,
+        loader: ByteArray,
+    ): ByteArray =
+        file(
+            image(
+                listOf(Part.flash(), Part.loader(loader.size)),
+                contents = mapOf(1 to loader),
+            ),
+            product,
+        )
+
+    private fun applicationArea(
+        code: ByteArray,
+        address: Int,
+        length: Int,
+    ): ByteArray {
+        val codeAddress = 0x200
+        val plain = ByteArray(codeAddress + code.size) { 0xFF.toByte() }
+        record("app.bin", address, length, Crc16.xModem(code), 0x82).copyInto(plain)
+        code.copyInto(plain, codeAddress)
+        val padded = plain.copyOf(plain.size + (32 - plain.size % 32) % 32)
+        val output = ArrayList<Byte>()
+        for (block in padded.indices step 32) {
+            output +=
+                Decipher
+                    .apply(
+                        padded.copyOfRange(block, block + 32),
+                        ApplicationArea.FM1_CHIP_KEY xor (block shr 2),
+                    ).toList()
+        }
+        return output.toByteArray()
+    }
+
+    private fun record(
+        name: String,
+        address: Int,
+        length: Int,
+        crc: Int,
+        attribute: Int,
+    ): ByteArray =
+        ByteArray(32).also { fields ->
+            put(crc, fields, 2, 2)
+            put(address, fields, 4, 4)
+            put(length, fields, 8, 4)
+            fields[12] = attribute.toByte()
+            name.encodeToByteArray().copyInto(fields, 16)
+            put(Crc16.xModem(fields.copyOfRange(2, 32)), fields, 0, 2)
+        }
 
     private fun put(
         value: Int,

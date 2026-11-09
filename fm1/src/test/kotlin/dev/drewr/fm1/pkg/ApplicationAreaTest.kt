@@ -1,3 +1,4 @@
+// Ported from FM1Kit 0.6.0 Tests/FM1RescueTests/LeavingGuideTests.swift — MIT, Copyright (c) 2026 Drew Robinson; see fm1/LICENSE-FM1Kit.txt.
 package dev.drewr.fm1.pkg
 
 import kotlin.test.Test
@@ -37,6 +38,13 @@ class ApplicationAreaTest {
         assertFalse(packageFile.usesFeluccaUpdateCode)
         assertFalse(packageFile.refusesV15OverOtherBootloaders)
     }
+
+    @Test fun transitFm1TakesV15() =
+        assertFalse(
+            SampleApplicationArea
+                .packageWith("..FELUCCA-LOADER-1..LOADER NOT STAGED..".encodeToByteArray())
+                .refusesV15OverOtherBootloaders,
+        )
 
     @Test fun rejectsAnOverflowingApplicationRange() {
         val packageFile = SampleApplicationArea.packageWithAppRecord(ByteArray(32), 0x7FFFFFE0, 64)

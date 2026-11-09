@@ -1,4 +1,4 @@
-// Ported from FM1Kit 0.4.5 Package/FwscPackage.swift — MIT, Copyright (c) 2026 Drew Robinson; see fm1/LICENSE-FM1Kit.txt.
+// Ported from FM1Kit 0.6.0 Package/FwscPackage.swift — MIT, Copyright (c) 2026 Drew Robinson; see fm1/LICENSE-FM1Kit.txt.
 package dev.drewr.fm1.pkg
 
 import dev.drewr.fm1.protocol.Fm1Identity
@@ -48,6 +48,11 @@ class FwscPackage(
     internal val container: FirmwareContainer
     val isFirmware get() = container.flash != null
     internal val flashImage get() = container.flash?.let { logicalImage.copyOfRange(it.offset, it.offset + it.size) }
+    val loaderBytes get() =
+        logicalImage.copyOfRange(
+            container.loader.offset,
+            container.loader.offset + container.loader.size,
+        )
 
     init {
         if (fileBytes.size <= BLOCK_COUNT * BLOCK_SIZE) throw Failure.TooShort
@@ -60,10 +65,7 @@ class FwscPackage(
         logicalImage = stripMarkers(fileBytes)
         container = FirmwareContainer(logicalImage)
         sha256 = sha256Hex(fileBytes)
-        loaderSha256 =
-            sha256Hex(
-                logicalImage.copyOfRange(container.loader.offset, container.loader.offset + container.loader.size),
-            )
+        loaderSha256 = sha256Hex(loaderBytes)
     }
 
     companion object {

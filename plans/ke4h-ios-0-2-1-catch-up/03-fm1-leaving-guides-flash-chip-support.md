@@ -1,4 +1,4 @@
-status: pending
+status: done
 # 03 — `:fm1`: update codes, leaving guides, flash chip support, sample packages with code
 
 Depends on: 02

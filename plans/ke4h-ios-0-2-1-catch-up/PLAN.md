@@ -1042,7 +1042,7 @@ None blocking. P-D1 (automatic MIDIMON) is the one decision David may want to re
 - [x] 13 — Docs: architecture, NOTICE facts on MPL-2.0, AGENTS confirmation rule (depends on: none)
 
 **Wave 2** — run together
-- [ ] 03 — `:fm1`: update codes, leaving guides, flash chip support, sample packages with code (depends on: 02)
+- [x] 03 — `:fm1`: update codes, leaving guides, flash chip support, sample packages with code (depends on: 02)
 - [ ] 04 — `:fm1`: full identity and flash chip in the handshake; finish when the firmware answers (depends on: 02)
 - [ ] 06 — `:model` library: keep every release, V16 by hash, the save trap, stock-loader resume (depends on: 02)
 - [ ] 09 — `:app` shared UI pieces: danger colour and button, flash chip notice, styled descriptions, Settings copy (depends on: 05)

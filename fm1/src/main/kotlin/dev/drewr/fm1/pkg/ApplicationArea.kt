@@ -17,7 +17,7 @@
 // NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-// Ported from FM1Kit 0.4.5 Package/ApplicationArea.swift — MIT, Copyright (c) 2026 Drew Robinson; see fm1/LICENSE-FM1Kit.txt.
+// Ported from FM1Kit 0.6.0 Package/ApplicationArea.swift — MIT, Copyright (c) 2026 Drew Robinson; see fm1/LICENSE-FM1Kit.txt.
 package dev.drewr.fm1.pkg
 
 internal class ApplicationArea(
@@ -94,20 +94,15 @@ internal class ApplicationArea(
 }
 
 val FwscPackage.usesFeluccaUpdateCode: Boolean get() = firmwareCode?.containsSequence(FELUCCA_LOADER_MARKER) ?: false
-val FwscPackage.refusesV15OverOtherBootloaders: Boolean get() =
-    firmwareCode?.let {
-        it.containsSequence(FELUCCA_LOADER_MARKER) &&
-            !it.containsSequence(BOOTLOADER_CHECK_MARKER) &&
-            !it.containsSequence(V15_FLASH_IMAGE_SHA256)
-    }
-        ?: false
-private val FwscPackage.firmwareCode get() =
+val FwscPackage.refusesV15OverOtherBootloaders: Boolean get() = updateCode == UpdateCode.FELUCCA_ORIGINAL_CHECK
+internal val FwscPackage.firmwareCode get() =
     flashImage?.let {
         ApplicationArea(it, ApplicationArea.FM1_CHIP_KEY).code()
     }
-private val FELUCCA_LOADER_MARKER = "FELUCCA-LOADER-1".encodeToByteArray()
-private val BOOTLOADER_CHECK_MARKER = "AC79BLID".encodeToByteArray()
-private val V15_FLASH_IMAGE_SHA256 = BuildIdBytes.v15
+internal val FELUCCA_LOADER_MARKER = "FELUCCA-LOADER-1".encodeToByteArray()
+internal val BOOTLOADER_CHECK_MARKER = "AC79BLID".encodeToByteArray()
+internal val OWN_LOADER_MARKER = "LOADER NOT STAGED".encodeToByteArray()
+internal val V15_FLASH_IMAGE_SHA256 = BuildIdBytes.v15
 
 private object BuildIdBytes {
     val v15 =
@@ -118,7 +113,7 @@ private object BuildIdBytes {
             }.toByteArray()
 }
 
-private fun ByteArray.containsSequence(sequence: ByteArray): Boolean =
+internal fun ByteArray.containsSequence(sequence: ByteArray): Boolean =
     sequence.isEmpty() ||
         indices.any { start ->
             start + sequence.size <= size &&
