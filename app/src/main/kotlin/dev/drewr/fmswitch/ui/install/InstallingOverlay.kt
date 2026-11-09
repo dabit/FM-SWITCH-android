@@ -174,18 +174,13 @@ private fun Installing(
             style = MaterialTheme.typography.headlineSmall,
             textAlign = TextAlign.Center,
         )
+        val darkScreen = stringResource(R.string.installing_dark_screen)
         Text(
-            stringResource(
-                if (job.steps.size >
-                    1
-                ) {
-                    R.string.installing_step
-                } else {
-                    R.string.installing_keep_plugged
-                },
-                job.index + 1,
-                job.steps.size,
-            ),
+            if (job.steps.size > 1) {
+                stringResource(R.string.installing_step, job.index + 1, job.steps.size, darkScreen)
+            } else {
+                darkScreen
+            },
             color = colors.secondaryInk,
             textAlign = TextAlign.Center,
         )

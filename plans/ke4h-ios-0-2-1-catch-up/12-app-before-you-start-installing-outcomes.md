@@ -1,4 +1,4 @@
-status: pending
+status: done
 # 12 — `:app` Before you start, installing and outcomes: V16 warnings, chains, look-alike reinstall, keep-it-on copy, still-mono card
 
 Depends on: 05, 07, 08, 09

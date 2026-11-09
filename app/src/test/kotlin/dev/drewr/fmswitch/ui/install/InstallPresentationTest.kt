@@ -98,6 +98,13 @@ class InstallPresentationTest {
     }
 
     @Test
+    fun `V15 after V16 tells the person it is still monophonic`() {
+        assertEquals(true, showsStillMono("FM-1_015", startedOnV16 = true))
+        assertEquals(false, showsStillMono("FM-1_015", startedOnV16 = false))
+        assertEquals(false, showsStillMono("FM-1_016", startedOnV16 = true))
+    }
+
+    @Test
     fun `start-up warning requires a non-M-VAVE answer`() {
         assertEquals(false, showsStartUpWarning(false, null))
         StartUp.entries.forEach { startUp ->

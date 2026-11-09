@@ -18,6 +18,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -34,13 +35,18 @@ import androidx.compose.ui.unit.dp
 import dev.drewr.fmswitch.LocalAppModel
 import dev.drewr.fmswitch.R
 import dev.drewr.fmswitch.RequestedPage
+import dev.drewr.fmswitch.data.HttpFetch
 import dev.drewr.fmswitch.model.device.FixedFirmware
 import dev.drewr.fmswitch.model.device.FlashJob
 import dev.drewr.fmswitch.model.device.FlashPhase
+import dev.drewr.fmswitch.model.device.SwitchingWords
 import dev.drewr.fmswitch.ui.components.ProminentButton
 import dev.drewr.fmswitch.ui.components.SecondaryButton
 import dev.drewr.fmswitch.ui.navigation.AppNavigator
 import dev.drewr.fmswitch.ui.theme.LocalStandardColors
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 object OutcomeScreens {
     @Composable
@@ -89,6 +95,17 @@ internal fun InstallDone(
             textAlign = TextAlign.Center,
         )
     }
+    if (showsStillMono(reported, job.startedOnV16)) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(14.dp))
+                .background(colors.card)
+                .padding(16.dp),
+        ) {
+            Text(SwitchingWords.STILL_MONO, color = colors.secondaryInk)
+        }
+    }
     ProminentButton(stringResource(R.string.install_done), model.device::dismissFlash)
 }
 
@@ -101,6 +118,9 @@ internal fun InstallProblem(
     val model = LocalAppModel.current
     val colors = LocalStandardColors.current
     val wayRound = model.catalogue.entries.firstOrNull { it.id == FixedFirmware.MIDIMON }
+    val scope = rememberCoroutineScope()
+    var isFindingFirstStep by remember { mutableStateOf(false) }
+    var firstStepProblem by remember { mutableStateOf<String?>(null) }
     val presentation =
         problemPresentation(
             canResume,
@@ -135,19 +155,48 @@ internal fun InstallProblem(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            ProblemStep(1, stringResource(R.string.install_resume_step_one))
+            ProblemStep(1, stringResource(R.string.install_resume_step_one), warning = true)
             ProblemStep(2, stringResource(R.string.install_resume_step_two))
+            ProblemStep(3, stringResource(R.string.install_resume_step_three))
         }
     }
     when (presentation.action) {
         ProblemAction.MIDIMON -> {
-            val midiMon = requireNotNull(wayRound)
             ProminentButton(
-                stringResource(R.string.install_midimon, midiMon.name),
+                SwitchingWords.installFirst("MIDIMON"),
                 onClick = {
-                    model.device.dismissFlash()
-                    model.requestPage(RequestedPage.Firmware(midiMon.id))
+                    scope.launch {
+                        isFindingFirstStep = true
+                        firstStepProblem = null
+                        try {
+                            val firstStep =
+                                FixedFirmware.find(
+                                    model.library,
+                                    model.catalogue.entries,
+                                    HttpFetch(Dispatchers.IO)::invoke,
+                                )
+                            if (job.confirmsSwitchingFirmware) {
+                                model.device.installFirst(firstStep)
+                            } else {
+                                model.device.dismissFlash()
+                                model.requestPage(RequestedPage.Firmware(firstStep.id))
+                            }
+                        } catch (error: CancellationException) {
+                            throw error
+                        } catch (error: Throwable) {
+                            firstStepProblem = error.message ?: error::class.simpleName
+                        } finally {
+                            isFindingFirstStep = false
+                        }
+                    }
                 },
+                enabled = !isFindingFirstStep,
+            )
+            Text(
+                firstStepProblem ?: SwitchingWords.installFirstDetail("MIDIMON", job.current.name),
+                color = if (firstStepProblem == null) colors.secondaryInk else colors.warningInk,
+                style = MaterialTheme.typography.bodySmall,
+                textAlign = TextAlign.Center,
             )
         }
 
@@ -180,6 +229,7 @@ internal fun InstallProblem(
 private fun ProblemStep(
     number: Int,
     text: String,
+    warning: Boolean = false,
 ) {
     val colors = LocalStandardColors.current
     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -193,9 +243,14 @@ private fun ProblemStep(
                     ).background(colors.control)
                     .padding(horizontal = 10.dp, vertical = 5.dp),
         )
-        Text(text, Modifier.padding(start = 12.dp))
+        Text(text, Modifier.padding(start = 12.dp), color = if (warning) colors.warningInk else colors.ink)
     }
 }
+
+internal fun showsStillMono(
+    reported: String,
+    startedOnV16: Boolean,
+): Boolean = reported == "FM-1_015" && startedOnV16
 
 @Composable
 private fun InstallDetails(message: String) {

@@ -22,6 +22,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -40,6 +41,8 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
+import dev.drewr.fm1.pkg.LeavingRoute
+import dev.drewr.fm1.protocol.Fm1Identity
 import dev.drewr.fmswitch.LocalAppModel
 import dev.drewr.fmswitch.R
 import dev.drewr.fmswitch.data.HttpFetch
@@ -52,6 +55,7 @@ import dev.drewr.fmswitch.model.library.StoredFirmware
 import dev.drewr.fmswitch.model.settings.StartUp
 import dev.drewr.fmswitch.ui.components.ProminentButton
 import dev.drewr.fmswitch.ui.components.SecondaryButton
+import dev.drewr.fmswitch.ui.firmwares.FlashChipNotice
 import dev.drewr.fmswitch.ui.navigation.AppNavigator
 import dev.drewr.fmswitch.ui.theme.LocalStandardColors
 import kotlinx.coroutines.Dispatchers
@@ -74,14 +78,16 @@ object BeforeYouStartSheet {
         var staysPluggedIn by remember { mutableStateOf(false) }
         var hasSaved by remember { mutableStateOf(false) }
         var acceptsUntested by remember { mutableStateOf(false) }
+        var confirmsNotOfficial by remember { mutableStateOf(false) }
         var switching by remember { mutableStateOf(SwitchingCheck()) }
         var selectedStartUp by remember { mutableStateOf(model.settings.startUp) }
         var asksStartUp by remember { mutableStateOf(false) }
+        val flashChipId by model.device.flashChipId.collectAsState()
         val catalogueItem = catalogue?.entries?.firstOrNull { it.id == currentTarget.catalogueID }
         val isUntested =
             catalogueItem?.isHardwareTested == false && currentTarget.source == StoredFirmware.Source.Catalogue
 
-        LaunchedEffect(currentTarget, identity, selectedStartUp, catalogue) {
+        LaunchedEffect(currentTarget, identity, selectedStartUp, catalogue, flashChipId) {
             checked = InstallCheckState.Checking
             val savedGuide =
                 identity?.text?.let {
@@ -98,7 +104,7 @@ object BeforeYouStartSheet {
                     model.device,
                     model.library,
                     savedGuide,
-                    null,
+                    flashChipId,
                     selectedStartUp,
                     catalogue?.entries.orEmpty(),
                     HttpFetch(Dispatchers.IO)::invoke,
@@ -130,7 +136,7 @@ object BeforeYouStartSheet {
                 hasSaved,
                 acceptsUntested,
                 currentTarget.name,
-                confirmsNotOfficial = false,
+                confirmsNotOfficial = confirmsNotOfficial,
             )
         val colors = LocalStandardColors.current
         val back = stringResource(R.string.back)
@@ -160,17 +166,20 @@ object BeforeYouStartSheet {
                     selectedStartUp = it
                     model.settings.startUp = it
                 }
-                InstallStatus(identity == null, identity?.isLoader == true, checked, readiness, identity?.text)
+                SwitchingWarnings(switching.warnings)
+                InstallStatus(identity == null, identity?.isLoader == true, checked, readiness, identity)
                 Checklist(
                     readiness,
                     hasDataCable,
                     staysPluggedIn,
                     hasSaved,
                     acceptsUntested,
+                    confirmsNotOfficial,
                     { hasDataCable = it },
                     { staysPluggedIn = it },
                     { hasSaved = it },
                     { acceptsUntested = it },
+                    { confirmsNotOfficial = it },
                 )
             }
             Row(
@@ -191,6 +200,7 @@ object BeforeYouStartSheet {
                             readiness.steps,
                             confirmsSwitchingFirmware = state.confirmsSwitchingFirmware(readiness),
                             confirmsSameIdentity = state.confirmsSameIdentity,
+                            confirmsReinstallingOfficial = state.confirmsReinstallingOfficial(readiness),
                         )
                         navigator.back()
                     },
@@ -231,25 +241,84 @@ private fun InstallPlan(
     readiness: InstallReadiness,
 ) {
     val colors = LocalStandardColors.current
+    val planned = readiness.steps.filter { it != readiness.switching.firstStep }
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("${target.name} ${target.version}", style = MaterialTheme.typography.titleMedium)
-        readiness.steps.firstOrNull()?.takeIf { readiness.steps.size > 1 }?.let { first ->
+        readiness.switching.firstStep?.let { first ->
+            readiness.switching.running?.let { running ->
+                Text(
+                    SwitchingWords.firstStep(first.name, running.firmwareName, target.name),
+                    color = colors.secondaryInk,
+                )
+            }
+        }
+        planned.firstOrNull()?.takeIf { planned.size > 1 }?.let { first ->
             Text(stringResource(R.string.before_start_plan, first.name, target.name), color = colors.secondaryInk)
         }
         if (readiness.isMissingOfficial) Notice(stringResource(R.string.before_start_missing_official), warning = true)
-        if (readiness.isUntested) Notice(InstallReadiness.UNTESTED_WARNING, warning = true)
-        readiness.switching.warnings.forEach { warning ->
-            Column(
-                Modifier.fillMaxWidth().background(colors.warningBackground, RoundedCornerShape(12.dp)).padding(12.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                Text(
-                    SwitchingWords.warningTitle,
-                    style = MaterialTheme.typography.titleSmall,
-                    color = colors.warningInk,
-                )
-                Text(warning, color = colors.warningInk)
+        if (readiness.isMissingFirstStep) {
+            readiness.switching.running?.let { running ->
+                planned.firstOrNull()?.let { next ->
+                    Notice(
+                        SwitchingWords.missingFirstStep(
+                            running.firmwareName,
+                            next.name,
+                            readiness.switching.firstStepProblem,
+                        ),
+                        warning = true,
+                    )
+                }
             }
+        }
+        if (readiness.isUntested) Notice(InstallReadiness.UNTESTED_WARNING, warning = true)
+        if (readiness.switching.knowsOnlyFirstChip.isNotEmpty()) {
+            FlashChipNotice(readiness.switching.knowsOnlyFirstChip, readiness.switching.hasNewerFlashChip)
+        }
+        if (readiness.switching.installsV16) Notice(SwitchingWords.BEFORE_V16_WARNING, warning = true)
+        if (readiness.switching.followsV16) Notice(SwitchingWords.AFTER_V16_WARNING, warning = true)
+        SwitchingRoute(readiness.switching)
+    }
+}
+
+@Composable
+private fun SwitchingRoute(switching: SwitchingCheck) {
+    val running = switching.running ?: return
+    val destination = switching.destination ?: return
+    when (switching.route) {
+        LeavingRoute.THROUGH_FIXED_FIRMWARE -> {
+            if (switching.firstStep != null) {
+                var expanded by remember { mutableStateOf(false) }
+                TextButton(onClick = { expanded = !expanded }) {
+                    Text("Why?")
+                }
+                if (expanded) Notice(running.instructions(destination).joinToString(" "), warning = false)
+            }
+        }
+
+        LeavingRoute.UNCERTAIN -> {
+            Notice(running.instructions(destination).joinToString(" "), warning = false)
+        }
+
+        else -> {
+            Unit
+        }
+    }
+}
+
+@Composable
+private fun SwitchingWarnings(warnings: List<String>) {
+    val colors = LocalStandardColors.current
+    warnings.forEach { warning ->
+        Column(
+            Modifier.fillMaxWidth().background(colors.warningBackground, RoundedCornerShape(12.dp)).padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Text(
+                SwitchingWords.warningTitle,
+                style = MaterialTheme.typography.titleSmall,
+                color = colors.warningInk,
+            )
+            Text(warning, color = colors.warningInk)
         }
     }
 }
@@ -302,8 +371,15 @@ private fun InstallStatus(
     isLoader: Boolean,
     checked: InstallCheckState,
     readiness: InstallReadiness,
-    identityText: String?,
+    identity: Fm1Identity?,
 ) {
+    if (checked is InstallCheckState.Found && readiness.knowsItIsntOfficial) {
+        val running = readiness.switching.running
+        if (identity != null && running != null) {
+            Notice(SwitchingWords.replacesLookAlike(running.firmwareName, identity), warning = false)
+        }
+        return
+    }
     when (
         installStatusNotice(
             !disconnected,
@@ -337,12 +413,18 @@ private fun InstallStatus(
         }
 
         InstallStatusNotice.ALREADY_RUNNING -> {
-            Notice(stringResource(R.string.before_start_already_running), warning = false)
+            val text =
+                if (readiness.canReinstallOfficial && identity != null) {
+                    SwitchingWords.alreadyOfficial(identity)
+                } else {
+                    stringResource(R.string.before_start_already_running)
+                }
+            Notice(text, warning = false)
         }
 
         InstallStatusNotice.SAME_IDENTITY -> {
             Notice(
-                stringResource(R.string.before_start_same_identity, identityText.orEmpty()),
+                stringResource(R.string.before_start_same_identity, identity?.text.orEmpty()),
                 warning = false,
             )
         }
@@ -360,30 +442,52 @@ private fun Checklist(
     staysPluggedIn: Boolean,
     hasSaved: Boolean,
     acceptsUntested: Boolean,
+    confirmsNotOfficial: Boolean,
     onDataCable: (Boolean) -> Unit,
     onStaysPluggedIn: (Boolean) -> Unit,
     onHasSaved: (Boolean) -> Unit,
     onAcceptsUntested: (Boolean) -> Unit,
+    onConfirmsNotOfficial: (Boolean) -> Unit,
 ) {
     val colors = LocalStandardColors.current
     Column(Modifier.fillMaxWidth().background(colors.card, RoundedCornerShape(16.dp))) {
-        CheckRow(R.string.before_start_data_cable, R.string.before_start_data_cable_detail, hasDataCable, onDataCable)
+        if (readiness.canReinstallOfficial && !readiness.knowsItIsntOfficial) {
+            val identity = requireNotNull(readiness.identity)
+            CheckRow(
+                SwitchingWords.notReallyOfficial,
+                SwitchingWords.notReallyOfficialDetail(identity),
+                confirmsNotOfficial,
+                onConfirmsNotOfficial,
+            )
+            HorizontalDivider(color = colors.line)
+        }
+        CheckRow(
+            stringResource(R.string.before_start_data_cable),
+            stringResource(R.string.before_start_data_cable_detail),
+            hasDataCable,
+            onDataCable,
+        )
         HorizontalDivider(color = colors.line)
         CheckRow(
-            R.string.before_start_keep_connected,
-            R.string.before_start_keep_connected_detail,
+            stringResource(R.string.before_start_keep_connected),
+            stringResource(R.string.before_start_keep_connected_detail),
             staysPluggedIn,
             onStaysPluggedIn,
         )
         if (readiness.isSwitching) {
             HorizontalDivider(color = colors.line)
-            CheckRow(R.string.before_start_saved, R.string.before_start_saved_detail, hasSaved, onHasSaved)
+            CheckRow(
+                stringResource(R.string.before_start_saved),
+                stringResource(R.string.before_start_saved_detail),
+                hasSaved,
+                onHasSaved,
+            )
         }
         if (readiness.isUntested) {
             HorizontalDivider(color = colors.line)
             CheckRow(
-                R.string.before_start_accept_untested,
-                R.string.before_start_accept_untested_detail,
+                stringResource(R.string.before_start_accept_untested),
+                stringResource(R.string.before_start_accept_untested_detail),
                 acceptsUntested,
                 onAcceptsUntested,
             )
@@ -398,8 +502,8 @@ private fun Checklist(
 
 @Composable
 private fun CheckRow(
-    title: Int,
-    detail: Int,
+    title: String,
+    detail: String,
     checked: Boolean,
     onChange: (Boolean) -> Unit,
 ) {
@@ -419,8 +523,8 @@ private fun CheckRow(
     ) {
         Text(if (checked) "✓" else "○", color = if (checked) colors.firmwaresTint else colors.secondaryInk)
         Column(Modifier.padding(start = 12.dp)) {
-            Text(stringResource(title), style = MaterialTheme.typography.titleSmall)
-            Text(stringResource(detail), color = colors.secondaryInk, style = MaterialTheme.typography.bodySmall)
+            Text(title, style = MaterialTheme.typography.titleSmall)
+            Text(detail, color = colors.secondaryInk, style = MaterialTheme.typography.bodySmall)
         }
     }
 }
