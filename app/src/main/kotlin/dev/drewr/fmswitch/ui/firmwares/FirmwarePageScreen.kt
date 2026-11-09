@@ -96,7 +96,7 @@ object FirmwarePageScreen {
                     return
                 }
         val context = LocalContext.current
-        val stored = model.library.stored(entry)
+        val stored = model.library.stored(entry, saved)
         val badge = entry.badge
         var linkError by remember { mutableStateOf<String?>(null) }
         val download = downloads[entry.id]
@@ -179,7 +179,7 @@ object FirmwarePageScreen {
                     FirmwarePageSaving(
                         entry = entry,
                         stored = stored,
-                        savedCopies = model.library.savedCopies(entry),
+                        savedCopies = model.library.pageCopies(entry, saved),
                         isConnected = identity != null,
                         isDownloading = isDownloading,
                         disabled = disabled,

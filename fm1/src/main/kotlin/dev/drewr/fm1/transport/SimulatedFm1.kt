@@ -277,7 +277,7 @@ class SimulatedFm1(
                     synchronized(lock) { !hasUnpluggedOnce }
                 ) {
                     synchronized(lock) { hasUnpluggedOnce = true }
-                    log("Cable pulled during writing; the loader stays in update mode.")
+                    log("Cable pulled during writing; the update can be resumed once it's reconnected.")
                     reboot(Mode.LOADER)
                     return
                 }

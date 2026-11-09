@@ -19,6 +19,7 @@ import kotlinx.serialization.json.Json
 import java.io.File
 import java.io.InputStream
 import java.time.Instant
+import java.util.concurrent.ConcurrentHashMap
 
 @Serializable
 data class StoredFirmware(
@@ -57,6 +58,7 @@ class FirmwareLibrary(
     val itemsFlow: StateFlow<List<StoredFirmware>> = mutableItems.asStateFlow()
     val items: List<StoredFirmware> get() = mutableItems.value
     private val loaderHashes = mutableMapOf<String, String?>()
+    private val officialBySha = ConcurrentHashMap<String, OfficialFirmware>()
     private val mutationMutex = Mutex()
 
     @Volatile private var builtIn: StoredFirmware? = null
@@ -72,7 +74,7 @@ class FirmwareLibrary(
                         StoredFirmware(
                             p.sha256,
                             OfficialFirmware.V15.name,
-                            "Official",
+                            "V15",
                             "M-VAVE",
                             p.product,
                             p.sha256,
@@ -113,11 +115,13 @@ class FirmwareLibrary(
             FwscPackage(bytes)
         }
 
-    fun stored(entry: CatalogueEntry) =
-        entry.sha256?.let { sha -> items.firstOrNull { it.sha256.equals(sha, true) } }
-            ?: entry.packageURL?.let { address ->
-                items.firstOrNull { it.catalogueID == entry.id && it.packageURL == address }
-            }
+    fun stored(
+        entry: CatalogueEntry,
+        from: List<StoredFirmware> = items,
+    ) = entry.sha256?.let { sha -> from.firstOrNull { it.sha256.equals(sha, true) } }
+        ?: entry.packageURL?.let { address ->
+            from.firstOrNull { it.catalogueID == entry.id && it.packageURL == address }
+        }
 
     fun outdated(entry: CatalogueEntry) =
         if (stored(entry) != null) {
@@ -138,7 +142,35 @@ class FirmwareLibrary(
             }
         }
 
-    fun savedCopies(entry: CatalogueEntry) = items.filter { it.catalogueID == entry.id }
+    fun savedCopies(
+        entry: CatalogueEntry,
+        from: List<StoredFirmware> = items,
+    ) = from.filter { it.catalogueID == entry.id }
+
+    /** The copies an entry's page can install, including the bundled V15 for M-VAVE's entry. */
+    fun pageCopies(
+        entry: CatalogueEntry,
+        from: List<StoredFirmware> = items,
+    ): List<StoredFirmware> {
+        val saved = savedCopies(entry, from)
+        val bundled =
+            builtIn?.takeIf { item ->
+                entry.isOfficial && saved.none { it.sha256.equals(item.sha256, ignoreCase = true) }
+            }
+        return saved + listOfNotNull(bundled)
+    }
+
+    fun pageVersionLabel(
+        entry: CatalogueEntry,
+        copy: StoredFirmware?,
+    ): String? =
+        copy
+            ?.sha256
+            ?.let { officialBySha[it.lowercase()] }
+            ?.name
+            ?.removePrefix("FM-1 ")
+            ?: copy?.version
+            ?: entry.version
 
     fun isSaved(entry: CatalogueEntry) = savedCopies(entry).isNotEmpty() && outdated(entry) == null
 
@@ -177,7 +209,21 @@ class FirmwareLibrary(
                     runCatching { Json.decodeFromString(StoredFirmware.serializer(), it.readText()) }.getOrNull()
                 }?.filter { File(directory, it.fileName).isFile }
                 .orEmpty()
-        mutableItems.value = disk + listOfNotNull(builtIn).filter { item -> disk.none { it.sha256 == item.sha256 } }
+        val loaded = disk + listOfNotNull(builtIn).filter { item -> disk.none { it.sha256 == item.sha256 } }
+        officialBySha.clear()
+        loaded.filter { it.source == StoredFirmware.Source.Official }.forEach { item ->
+            runCatching {
+                val bytes =
+                    if (item == builtIn) {
+                        bundledOfficial().use { it.readBytes() }
+                    } else {
+                        File(directory, item.fileName).readBytes()
+                    }
+                officialOf(FwscPackage(bytes))
+            }.getOrNull()
+                ?.let { official -> officialBySha[item.sha256.lowercase()] = official }
+        }
+        mutableItems.value = loaded
         loaderHashes.keys.retainAll(items.map { it.id }.toSet())
     }
 
@@ -249,7 +295,7 @@ class FirmwareLibrary(
                     return@withContext saveOfficial(
                         bytes,
                         packageFile,
-                        official.name,
+                        official,
                         entry.id,
                         address,
                     )
@@ -281,7 +327,7 @@ class FirmwareLibrary(
                     return@withContext saveOfficial(
                         bytes,
                         packageFile,
-                        official.name,
+                        official,
                         null,
                         null,
                     )
@@ -306,20 +352,23 @@ class FirmwareLibrary(
     private suspend fun saveOfficial(
         bytes: ByteArray,
         packageFile: FwscPackage,
-        name: String,
+        official: OfficialFirmware,
         catalogueID: String?,
         packageURL: String?,
-    ) = save(
-        bytes,
-        packageFile,
-        name,
-        "Official",
-        "M-VAVE",
-        StoredFirmware.Source.Official,
-        catalogueID,
-        packageURL,
-        null,
-    )
+    ): StoredFirmware {
+        officialBySha[packageFile.sha256.lowercase()] = official
+        return save(
+            bytes,
+            packageFile,
+            official.name,
+            "Official",
+            "M-VAVE",
+            StoredFirmware.Source.Official,
+            catalogueID,
+            packageURL,
+            null,
+        )
+    }
 
     private suspend fun save(
         bytes: ByteArray,

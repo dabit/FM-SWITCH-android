@@ -63,19 +63,23 @@ internal fun FirmwarePageSaving(
     var chosenEarlierId by remember { mutableStateOf<String?>(null) }
     val chosenEarlier = earlier.firstOrNull { it.id == chosenEarlierId }
     val installable = chosenEarlier ?: stored
+    val newestLabel =
+        library.pageVersionLabel(entry, stored) ?: stringResource(R.string.firmware_version_newest)
+    val installableLabel = library.pageVersionLabel(entry, installable) ?: newestLabel
     val shownVersion =
         if (earlier.isNotEmpty()) {
-            " ${installable?.version ?: entry.version.orEmpty()}"
+            " $installableLabel"
         } else {
             ""
         }
 
     if (earlier.isNotEmpty()) {
         VersionChoice(
-            newest = entry.version ?: stringResource(R.string.firmware_version_newest),
+            newest = newestLabel,
             earlier = earlier,
             chosenEarlierId = chosenEarlier?.id,
             onChoose = { chosenEarlierId = it },
+            labelOf = { library.pageVersionLabel(entry, it) ?: it.version },
         )
     }
     ProminentButton(
@@ -110,6 +114,7 @@ private fun VersionChoice(
     earlier: List<StoredFirmware>,
     chosenEarlierId: String?,
     onChoose: (String?) -> Unit,
+    labelOf: (StoredFirmware) -> String,
 ) = Row(
     Modifier
         .fillMaxWidth()
@@ -125,7 +130,7 @@ private fun VersionChoice(
     )
     earlier.forEach { copy ->
         VersionChoiceItem(
-            label = copy.version,
+            label = labelOf(copy),
             selected = chosenEarlierId == copy.id,
             onClick = { onChoose(copy.id) },
             modifier = Modifier.weight(1f),

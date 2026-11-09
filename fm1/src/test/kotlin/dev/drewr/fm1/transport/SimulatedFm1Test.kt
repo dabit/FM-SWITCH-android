@@ -107,6 +107,24 @@ class SimulatedFm1Test {
             assertTrue(simulator.events.any { it.contains("already running") })
         }
 
+    @Test fun cablePullSaysTheUpdateCanBeResumed() =
+        runTest {
+            val simulator = SimulatedFm1(options().apply { unplugDuringWriteAt = 0.0 }, this)
+            val packageFile = FwscPackage(SamplePackage.file("FM-1_901"))
+            simulator.prepare(packageFile)
+
+            assertFailsWith<Fm1UpdateError.Disconnected> {
+                Fm1Updater(simulator, timing()).install(
+                    packageFile,
+                    InstallOptions(confirmsSwitchingFirmware = true),
+                )
+            }
+
+            assertTrue(
+                "Cable pulled during writing; the update can be resumed once it's reconnected." in simulator.events,
+            )
+        }
+
     private fun options() =
         SimulatedFm1.Options().apply {
             requestInterval = ZERO

@@ -53,6 +53,7 @@ Planner decisions (all "Planner default, not asked"; moved here from the Impleme
   installing V16 on the simulated FM-1 and then V15, in one session.
 - **P-D8 `Fm1Updater.summary()`** follows Android's `identify()` (first FM-1 found), not FK's `findOnly` (choosing between
   FM-1s is out of scope).
+- V15 on the official page, asked and answered (David, AskUserQuestion 2026-11-09: "V15 on the official page"). Once the list's official entry became V16, the bundled V15 had no way in: not on the page, not in My firmwares, and not after importing FM-1_015.fwsc. iOS 0.2.1's Standard look appears to have the same gap. Android now offers V15 as an earlier version on the official firmware's page ("Comes with the app, so it installs even offline"). This is a deliberate difference from iOS. Built after the UAT, as a commit outside the tasks.
 
 ## References
 

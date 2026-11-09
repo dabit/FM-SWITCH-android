@@ -61,7 +61,7 @@ class LibraryTest {
     @Test fun comesWithTheOfficialFirmwareAndKeepsItWhenCleared() {
         val l = library()
         kotlinx.coroutines.runBlocking { l.clear() }
-        assertEquals("Official", l.official!!.version)
+        assertEquals("V15", l.official!!.version)
     }
 
     @Test fun readsTheBuiltInCopyRatherThanSavingIt() {
@@ -291,6 +291,57 @@ class LibraryTest {
             )
         assertEquals(library.official, item)
         assertTrue(libraryDir(library).listFiles()?.none { it.extension == "fwsc" } == true)
+    }
+
+    @Test fun officialPageOffersBundledV15WithoutCountingItAsSaved() {
+        val library = library()
+        val official =
+            CatalogueEntry(
+                "mvave-official",
+                "M-VAVE official firmware",
+                version = "V16",
+                isOfficial = true,
+            )
+
+        assertEquals(listOf(library.official), library.pageCopies(official))
+        assertEquals("V15", library.pageCopies(official).single().version)
+        assertTrue(library.savedCopies(official).isEmpty())
+        assertFalse(library.isSaved(official))
+    }
+
+    @Test fun officialPageVersionLabelsNameBothOfficialReleases() {
+        val entry =
+            CatalogueEntry(
+                "mvave-official",
+                "M-VAVE official firmware",
+                version = "V16",
+                packageURL = "v16",
+                isOfficial = true,
+            )
+        val v15 = library()
+        assertEquals("V15", v15.pageVersionLabel(entry, v15.official))
+
+        val v16 =
+            library { packageFile ->
+                if (packageFile.product == "FM-1_016") OfficialFirmware.V16 else OfficialFirmware.official(packageFile)
+            }
+        val savedV16 = download(v16, entry, SamplePackage.file("FM-1_016"))
+        assertEquals("Official", savedV16.version)
+        assertEquals("V16", v16.pageVersionLabel(entry, savedV16))
+        kotlinx.coroutines.runBlocking { v16.reload() }
+        assertEquals("V16", v16.pageVersionLabel(entry, v16.stored(entry)))
+        assertEquals("V16", v16.pageVersionLabel(entry, null))
+    }
+
+    @Test fun pageQueriesUseTheProvidedItemsSnapshot() {
+        val library = library()
+        val entry = CatalogueEntry("same", "Felucca", packageURL = "one")
+        val saved = download(library, entry, SamplePackage.file("FM-1_916"))
+
+        assertEquals(saved, library.stored(entry, listOf(saved)))
+        assertEquals(listOf(saved), library.savedCopies(entry, listOf(saved)))
+        assertEquals(null, library.stored(entry, emptyList()))
+        assertTrue(library.savedCopies(entry, emptyList()).isEmpty())
     }
 
     @Test fun addRecognisesV16ByHash() {
