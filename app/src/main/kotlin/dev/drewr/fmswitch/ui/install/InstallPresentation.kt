@@ -41,9 +41,9 @@ internal fun problemPresentation(
 }
 
 internal fun showsStartUpWarning(
-    refusesV15: Boolean,
+    dependsOnStartUp: Boolean,
     startUp: StartUp?,
-): Boolean = refusesV15 && startUp != null && startUp != StartUp.MVave
+): Boolean = dependsOnStartUp && startUp != null && startUp != StartUp.MVave
 
 internal enum class InstallStatusNotice { PLUG_IN, WAITING, CHECKING, FAILED, ALREADY_RUNNING, SAME_IDENTITY, NONE }
 

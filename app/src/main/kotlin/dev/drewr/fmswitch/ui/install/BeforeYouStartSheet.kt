@@ -42,16 +42,19 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import dev.drewr.fmswitch.LocalAppModel
 import dev.drewr.fmswitch.R
+import dev.drewr.fmswitch.data.HttpFetch
 import dev.drewr.fmswitch.model.device.BeforeYouStartState
 import dev.drewr.fmswitch.model.device.InstallCheckState
 import dev.drewr.fmswitch.model.device.InstallReadiness
+import dev.drewr.fmswitch.model.device.SwitchingCheck
+import dev.drewr.fmswitch.model.device.SwitchingWords
 import dev.drewr.fmswitch.model.library.StoredFirmware
-import dev.drewr.fmswitch.model.settings.FeluccaUpdateCode
 import dev.drewr.fmswitch.model.settings.StartUp
 import dev.drewr.fmswitch.ui.components.ProminentButton
 import dev.drewr.fmswitch.ui.components.SecondaryButton
 import dev.drewr.fmswitch.ui.navigation.AppNavigator
 import dev.drewr.fmswitch.ui.theme.LocalStandardColors
+import kotlinx.coroutines.Dispatchers
 
 object BeforeYouStartSheet {
     @Composable
@@ -71,23 +74,42 @@ object BeforeYouStartSheet {
         var staysPluggedIn by remember { mutableStateOf(false) }
         var hasSaved by remember { mutableStateOf(false) }
         var acceptsUntested by remember { mutableStateOf(false) }
-        var refusesV15 by remember { mutableStateOf(false) }
+        var switching by remember { mutableStateOf(SwitchingCheck()) }
         var selectedStartUp by remember { mutableStateOf(model.settings.startUp) }
         var asksStartUp by remember { mutableStateOf(false) }
         val catalogueItem = catalogue?.entries?.firstOrNull { it.id == currentTarget.catalogueID }
         val isUntested =
             catalogueItem?.isHardwareTested == false && currentTarget.source == StoredFirmware.Source.Catalogue
 
-        LaunchedEffect(currentTarget, identity) {
+        LaunchedEffect(currentTarget, identity, selectedStartUp, catalogue) {
             checked = InstallCheckState.Checking
-            refusesV15 = InstallReadiness.refusesV15OverOtherBootloaders(currentTarget, model.library)
-            asksStartUp = asksStartUp || (refusesV15 && selectedStartUp != StartUp.MVave)
+            val savedGuide =
+                identity?.text?.let {
+                    model.history
+                        .lastInstall(it)
+                        ?.guide
+                        ?.toGuide()
+                }
+            switching =
+                SwitchingCheck.read(
+                    currentTarget,
+                    requiresOfficial,
+                    model.settings.alwaysViaOfficial,
+                    model.device,
+                    model.library,
+                    savedGuide,
+                    null,
+                    selectedStartUp,
+                    catalogue?.entries.orEmpty(),
+                    HttpFetch(Dispatchers.IO)::invoke,
+                )
+            asksStartUp = asksStartUp || (switching.dependsOnStartUp && selectedStartUp != StartUp.MVave)
             val checkingReadiness =
                 InstallReadiness.fromTarget(
                     currentTarget,
                     requiresOfficial,
                     checked,
-                    refusesV15,
+                    switching,
                     isUntested,
                     selectedStartUp,
                     model.device,
@@ -97,7 +119,7 @@ object BeforeYouStartSheet {
             checked = InstallReadiness.check(checkingReadiness.steps.firstOrNull(), model.device)
         }
 
-        val readiness = readinessFor(currentTarget, requiresOfficial, checked, refusesV15, isUntested, selectedStartUp)
+        val readiness = readinessFor(currentTarget, requiresOfficial, checked, switching, isUntested, selectedStartUp)
         val state =
             BeforeYouStartState(
                 readiness.isSwitching,
@@ -108,6 +130,7 @@ object BeforeYouStartSheet {
                 hasSaved,
                 acceptsUntested,
                 currentTarget.name,
+                confirmsNotOfficial = false,
             )
         val colors = LocalStandardColors.current
         val back = stringResource(R.string.back)
@@ -133,7 +156,7 @@ object BeforeYouStartSheet {
                     )
                 }
                 InstallPlan(currentTarget, readiness)
-                StartUpSection(currentTarget, readiness, asksStartUp, selectedStartUp) {
+                StartUpSection(asksStartUp, selectedStartUp) {
                     selectedStartUp = it
                     model.settings.startUp = it
                 }
@@ -154,7 +177,7 @@ object BeforeYouStartSheet {
                 Modifier.fillMaxWidth().background(colors.ground).padding(horizontal = 20.dp, vertical = 12.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                if (showsStartUpWarning(refusesV15, selectedStartUp)) {
+                if (switching.warnings.isNotEmpty()) {
                     SecondaryButton(
                         stringResource(R.string.before_start_dont_install),
                         navigator::back,
@@ -166,7 +189,7 @@ object BeforeYouStartSheet {
                     onClick = {
                         model.device.flash(
                             readiness.steps,
-                            confirmsSwitchingFirmware = state.confirmsSwitchingFirmware,
+                            confirmsSwitchingFirmware = state.confirmsSwitchingFirmware(readiness),
                             confirmsSameIdentity = state.confirmsSameIdentity,
                         )
                         navigator.back()
@@ -183,7 +206,7 @@ object BeforeYouStartSheet {
         target: StoredFirmware,
         requiresOfficial: Boolean,
         checked: InstallCheckState,
-        refusesV15: Boolean,
+        switching: SwitchingCheck,
         isUntested: Boolean,
         startUp: StartUp?,
     ): InstallReadiness {
@@ -192,7 +215,7 @@ object BeforeYouStartSheet {
             target,
             requiresOfficial,
             checked,
-            refusesV15,
+            switching,
             isUntested,
             startUp,
             model.device,
@@ -214,16 +237,25 @@ private fun InstallPlan(
             Text(stringResource(R.string.before_start_plan, first.name, target.name), color = colors.secondaryInk)
         }
         if (readiness.isMissingOfficial) Notice(stringResource(R.string.before_start_missing_official), warning = true)
-        if (readiness.isUntested) {
-            Notice(stringResource(R.string.before_start_untested), warning = true)
+        if (readiness.isUntested) Notice(InstallReadiness.UNTESTED_WARNING, warning = true)
+        readiness.switching.warnings.forEach { warning ->
+            Column(
+                Modifier.fillMaxWidth().background(colors.warningBackground, RoundedCornerShape(12.dp)).padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Text(
+                    SwitchingWords.warningTitle,
+                    style = MaterialTheme.typography.titleSmall,
+                    color = colors.warningInk,
+                )
+                Text(warning, color = colors.warningInk)
+            }
         }
     }
 }
 
 @Composable
 private fun StartUpSection(
-    target: StoredFirmware,
-    readiness: InstallReadiness,
     asksStartUp: Boolean,
     selectedStartUp: StartUp?,
     onStartUp: (StartUp) -> Unit,
@@ -237,20 +269,6 @@ private fun StartUpSection(
                 if (index > 0) HorizontalDivider(color = colors.line)
                 StartUpRow(startUp, selectedStartUp == startUp) { onStartUp(startUp) }
             }
-        }
-    }
-    if (showsStartUpWarning(readiness.refusesV15OverOtherBootloaders, selectedStartUp)) {
-        val warning = FeluccaUpdateCode.Warning(target.catalogueID, target.name, selectedStartUp ?: StartUp.NotSure)
-        Column(
-            Modifier.fillMaxWidth().background(colors.warningBackground, RoundedCornerShape(12.dp)).padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            Text(warning.title, style = MaterialTheme.typography.titleSmall, color = colors.warningInk)
-            Text(warning.body, color = colors.warningInk)
-            var explainsWhy by remember { mutableStateOf(false) }
-            SecondaryButton(stringResource(R.string.before_start_why), onClick = { explainsWhy = !explainsWhy })
-            if (explainsWhy) Text(warning.why, color = colors.warningInk, style = MaterialTheme.typography.bodySmall)
-            Text(stringResource(R.string.before_start_computer_recovery), color = colors.warningInk)
         }
     }
 }

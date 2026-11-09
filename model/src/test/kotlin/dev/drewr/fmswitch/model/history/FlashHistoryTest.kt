@@ -1,4 +1,8 @@
 package dev.drewr.fmswitch.model.history
+import dev.drewr.fm1.pkg.Fm1BootArea
+import dev.drewr.fm1.pkg.LeavingGuide
+import dev.drewr.fm1.pkg.UpdateCode
+import dev.drewr.fm1.protocol.Fm1Identity
 import dev.drewr.fmswitch.model.library.StoredFirmware
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
@@ -43,4 +47,29 @@ class FlashHistoryTest {
         runBlocking { reloaded.load() }
         assertEquals("P7", reloaded.lastInstall("P7")?.product)
     }
+
+    @Test fun canBeSavedWithTheFM1() {
+        val guide = LeavingGuide("TransitFM1", Fm1Identity.officialV15, UpdateCode.OWN_LOADER, Fm1BootArea.M_BOOTLOADER)
+        assertEquals(guide, SavedGuide.from(guide).toGuide())
+    }
+
+    @Test fun readsHistorySavedBeforeGuides() {
+        val directory = createTempDirectory().toFile()
+        java.io
+            .File(
+                directory,
+                "flash-history.json",
+            ).writeText("[{\"name\":\"N\",\"version\":\"V\",\"product\":\"P\",\"date\":\"1970-01-01T00:00:00Z\"}]")
+        val history = FlashHistory(directory, Dispatchers.Unconfined) { Instant.EPOCH }
+        runBlocking { history.load() }
+        val record = requireNotNull(history.last)
+        assertEquals("N", record.name)
+        assertEquals(null, record.guide)
+    }
+
+    @Test fun forgetsAGuideItCannotRead() =
+        assertEquals(
+            null,
+            SavedGuide("bad", "FM-1_015", "notKnown", null).toGuide(),
+        )
 }

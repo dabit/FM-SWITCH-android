@@ -7,14 +7,11 @@
     <string name="before_start_waiting">Your FM-1 is waiting to finish an install, so this carries on with it.</string>
     <string name="before_start_plan">%1$s goes on first, as %2$s installs from it.</string>
     <string name="before_start_missing_official">This needs M-VAVE\'s official firmware to go on first, and there\'s no copy of it here.</string>
-    <string name="before_start_untested">In testing. This firmware is only listed on the FM-1 Resource Hub, not on FM-1 Firmware Hub or the editor site, so it may not have been well tested on a real FM-1. It may not install, or may not let another firmware install after it. Recovery might need a computer; check this app\'s settings for further information.</string>
     <string name="before_start_plug_in">Plug in your FM-1 and switch it on.</string>
     <string name="before_start_checking">Checking your FM-1…</string>
     <string name="before_start_already_running">Your FM-1 is already running this, so there\'s nothing to install.</string>
     <string name="before_start_same_identity">Your FM-1 already reports %1$s, the same as this. Installing it reinstalls that firmware, or updates it to this release.</string>
-    <string name="before_start_why">Why?</string>
     <string name="before_start_dont_install">Don\'t install</string>
-    <string name="before_start_computer_recovery">Going back to V15 after this kind of firmware needs a computer and Backup &amp; rescue in the Mac app.</string>
     <string name="before_start_data_cable">It\'s plugged in with a data cable</string>
     <string name="before_start_data_cable_detail">Some USB cables only charge. If your FM-1 showed up in the app, yours is fine.</string>
     <string name="before_start_keep_connected">I\'ll leave it plugged in until it\'s done</string>

@@ -8,6 +8,7 @@ import dev.drewr.fmswitch.model.device.FlashPhase
 import dev.drewr.fmswitch.model.device.InstallCheckState
 import dev.drewr.fmswitch.model.device.InstallProgress
 import dev.drewr.fmswitch.model.device.InstallReadiness
+import dev.drewr.fmswitch.model.device.SwitchingCheck
 import dev.drewr.fmswitch.model.history.FlashHistory
 import dev.drewr.fmswitch.model.library.FirmwareLibrary
 import dev.drewr.fmswitch.model.library.StoredFirmware
@@ -147,7 +148,7 @@ class InstallPresentationTest {
                     target,
                     requiresOfficial = true,
                     checked = InstallCheckState.Checking,
-                    refusesV15OverOtherBootloaders = false,
+                    switching = SwitchingCheck(),
                     isUntested = false,
                     startUp = StartUp.MVave,
                     device = controller,

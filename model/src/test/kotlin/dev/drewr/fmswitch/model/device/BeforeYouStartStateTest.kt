@@ -2,12 +2,27 @@ package dev.drewr.fmswitch.model.device
 
 import dev.drewr.fm1.protocol.Fm1Identity
 import dev.drewr.fm1.updater.InstallKind
+import dev.drewr.fmswitch.model.library.StoredFirmware
+import java.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class BeforeYouStartStateTest {
+    private val item =
+        StoredFirmware(
+            "official",
+            "V15",
+            "Official",
+            product = "FM-1_015",
+            sha256 = "official",
+            size = 1,
+            fileName = "official.fwsc",
+            source = StoredFirmware.Source.Official,
+            savedAt = Instant.EPOCH,
+        )
+
     private fun state(
         switching: Boolean = false,
         same: Boolean = false,
@@ -29,7 +44,7 @@ class BeforeYouStartStateTest {
     @Test fun confirmationsFollowTheTicks() {
         val startable =
             InstallReadiness(emptyList(), InstallCheckState.Found(InstallKind.UPDATE), Fm1Identity.parse("FM-1_900"))
-        val needsStartUp = startable.copy(refusesV15OverOtherBootloaders = true)
+        val needsStartUp = startable.copy(switching = SwitchingCheck(isRead = true, dependsOnStartUp = true))
         assertTrue(state(switching = true).confirmsSwitchingFirmware)
         assertFalse(state(switching = true, saved = false).confirmsSwitchingFirmware)
         assertTrue(state(same = true).confirmsSameIdentity)
@@ -42,9 +57,27 @@ class BeforeYouStartStateTest {
 
     @Test fun isEnabledNeedsTheTickAndAStartableReadiness() {
         val startable =
-            InstallReadiness(emptyList(), InstallCheckState.Found(InstallKind.UPDATE), Fm1Identity.parse("FM-1_900"))
+            InstallReadiness(
+                listOf(item),
+                InstallCheckState.Found(InstallKind.UPDATE),
+                Fm1Identity.parse("FM-1_900"),
+                switching = SwitchingCheck(isRead = true),
+            )
         assertFalse(state(switching = true, saved = false).isEnabled(startable))
         assertFalse(state().isEnabled(startable.copy(identity = null)))
         assertTrue(state().isEnabled(startable))
+    }
+
+    @Test
+    fun confirmsReinstallingOfficialFollowsTheTicks() {
+        val readiness =
+            InstallReadiness(
+                listOf(item),
+                InstallCheckState.Found(InstallKind.REINSTALL),
+                Fm1Identity.officialV15,
+                switching = SwitchingCheck(isRead = true),
+            )
+        assertFalse(state().confirmsReinstallingOfficial(readiness))
+        assertTrue(state().copy(confirmsNotOfficial = true).confirmsReinstallingOfficial(readiness))
     }
 }

@@ -34,9 +34,9 @@ import androidx.compose.ui.unit.dp
 import dev.drewr.fmswitch.LocalAppModel
 import dev.drewr.fmswitch.R
 import dev.drewr.fmswitch.RequestedPage
+import dev.drewr.fmswitch.model.device.FixedFirmware
 import dev.drewr.fmswitch.model.device.FlashJob
 import dev.drewr.fmswitch.model.device.FlashPhase
-import dev.drewr.fmswitch.model.settings.FeluccaUpdateCode
 import dev.drewr.fmswitch.ui.components.ProminentButton
 import dev.drewr.fmswitch.ui.components.SecondaryButton
 import dev.drewr.fmswitch.ui.navigation.AppNavigator
@@ -100,7 +100,7 @@ internal fun InstallProblem(
 ) {
     val model = LocalAppModel.current
     val colors = LocalStandardColors.current
-    val wayRound = model.catalogue.entries.firstOrNull { it.id == FeluccaUpdateCode.wayRound }
+    val wayRound = model.catalogue.entries.firstOrNull { it.id == FixedFirmware.MIDIMON }
     val presentation =
         problemPresentation(
             canResume,

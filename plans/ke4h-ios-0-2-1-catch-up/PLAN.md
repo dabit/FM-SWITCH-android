@@ -1048,7 +1048,7 @@ None blocking. P-D1 (automatic MIDIMON) is the one decision David may want to re
 - [x] 09 — `:app` shared UI pieces: danger colour and button, flash chip notice, styled descriptions, Settings copy (depends on: 05)
 
 **Wave 3** — run together
-- [ ] 07 — `:model` switching guides, words, readiness, MIDIMON first, saved guides (depends on: 02, 03, 05)
+- [x] 07 — `:model` switching guides, words, readiness, MIDIMON first, saved guides (depends on: 02, 03, 05)
 - [ ] 10 — `:app` firmware list and My firmwares (depends on: 05, 06, 09)
 
 **Wave 4**

@@ -1,6 +1,10 @@
 // Ported from FM-SWITCH App/Model/FlashHistory.swift.
 package dev.drewr.fmswitch.model.history
 
+import dev.drewr.fm1.pkg.Fm1BootArea
+import dev.drewr.fm1.pkg.LeavingGuide
+import dev.drewr.fm1.pkg.UpdateCode
+import dev.drewr.fm1.protocol.Fm1Identity
 import dev.drewr.fmswitch.model.catalogue.InstantSerializer
 import dev.drewr.fmswitch.model.library.StoredFirmware
 import kotlinx.coroutines.CoroutineDispatcher
@@ -16,7 +20,33 @@ data class FlashRecord(
     val version: String,
     val product: String,
     @Serializable(with = InstantSerializer::class) val date: Instant,
+    val guide: SavedGuide? = null,
 )
+
+@Serializable
+data class SavedGuide(
+    val firmwareName: String,
+    val identity: String,
+    val updateCode: String,
+    val bootArea: String? = null,
+) {
+    fun toGuide(): LeavingGuide? {
+        val parsedIdentity = Fm1Identity.parse(identity) ?: return null
+        val parsedCode = UpdateCode.entries.firstOrNull { it.raw == updateCode } ?: return null
+        val parsedBootArea =
+            if (bootArea == null) {
+                null
+            } else {
+                Fm1BootArea.entries.firstOrNull { it.raw == bootArea } ?: return null
+            }
+        return LeavingGuide(firmwareName, parsedIdentity, parsedCode, parsedBootArea)
+    }
+
+    companion object {
+        fun from(guide: LeavingGuide) =
+            SavedGuide(guide.firmwareName, guide.identity.text, guide.updateCode.raw, guide.bootArea?.raw)
+    }
+}
 
 class FlashHistory(
     private val directory: File?,
@@ -40,17 +70,23 @@ class FlashHistory(
 
     fun lastInstall(product: String) = last?.takeIf { it.product == product }
 
-    suspend fun record(item: StoredFirmware) =
-        withContext(ioDispatcher) {
-            records =
-                (listOf(FlashRecord(item.name, item.version, item.product, now())) + records).take(30)
-            directory?.let { dir ->
-                dir.mkdirs()
-                runCatching {
-                    atomicWrite(File(dir, "flash-history.json"), Json.encodeToString(records).encodeToByteArray())
-                }
+    suspend fun record(
+        item: StoredFirmware,
+        guide: LeavingGuide? = null,
+    ) = withContext(ioDispatcher) {
+        records =
+            (
+                listOf(
+                    FlashRecord(item.name, item.version, item.product, now(), guide?.let(SavedGuide::from)),
+                ) + records
+            ).take(30)
+        directory?.let { dir ->
+            dir.mkdirs()
+            runCatching {
+                atomicWrite(File(dir, "flash-history.json"), Json.encodeToString(records).encodeToByteArray())
             }
         }
+    }
 
     private fun atomicWrite(
         file: File,

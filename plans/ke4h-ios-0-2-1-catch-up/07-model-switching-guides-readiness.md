@@ -1,4 +1,4 @@
-status: pending
+status: done
 # 07 — `:model` switching guides, switching words, readiness, MIDIMON first, saved guides
 
 Depends on: 02, 03, 05
