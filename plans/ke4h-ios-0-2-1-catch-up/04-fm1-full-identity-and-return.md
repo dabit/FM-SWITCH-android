@@ -1,4 +1,4 @@
-status: pending
+status: done
 # 04 — `:fm1`: full identity and flash chip in the handshake; finish when the firmware answers; simulator options
 
 Depends on: 02

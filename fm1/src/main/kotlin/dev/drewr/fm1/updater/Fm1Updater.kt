@@ -3,6 +3,7 @@ package dev.drewr.fm1.updater
 
 import dev.drewr.fm1.pkg.FwscPackage
 import dev.drewr.fm1.protocol.BuildId
+import dev.drewr.fm1.protocol.Fm1FlashChip
 import dev.drewr.fm1.protocol.Fm1Identity
 import dev.drewr.fm1.protocol.Fm1Message
 import dev.drewr.fm1.protocol.ReadRequest
@@ -18,7 +19,15 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.coroutines.coroutineContext
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.ZERO
 import kotlin.time.Duration.Companion.seconds
+
+data class Fm1DeviceSummary(
+    val identity: Fm1Identity,
+    val flashChipId: Int?,
+) {
+    val hasNewerFlashChip: Boolean get() = flashChipId == Fm1FlashChip.UC25HQ80
+}
 
 class Fm1Updater(
     val transport: MidiTransport,
@@ -27,6 +36,7 @@ class Fm1Updater(
     data class FoundDevice(
         val connection: MidiConnection,
         val identity: Fm1Identity,
+        val flashChipId: Int? = null,
     )
 
     private data class ServeOutcome(
@@ -34,6 +44,7 @@ class Fm1Updater(
         var finished: Boolean = false,
         var lost: Boolean = false,
         var lastRead: IntRange? = null,
+        var returned: FoundDevice? = null,
     )
 
     private val mutex = Mutex()
@@ -47,6 +58,14 @@ class Fm1Updater(
     suspend fun identify(): Fm1Identity? =
         mutex.withLock {
             findUnlocked()?.also { it.connection.close() }?.identity
+        }
+
+    suspend fun summary(): Fm1DeviceSummary? =
+        mutex.withLock {
+            findUnlocked()?.let { device ->
+                device.connection.close()
+                Fm1DeviceSummary(device.identity, device.flashChipId)
+            }
         }
 
     suspend fun check(
@@ -94,10 +113,10 @@ class Fm1Updater(
                 }
             var found = false
             try {
-                val identity = handshake(connection)
-                if (identity != null && filter(identity)) {
+                val answer = handshakeAnswer(connection)
+                if (answer != null && filter(answer.identity)) {
                     found = true
-                    return FoundDevice(connection, identity)
+                    return FoundDevice(connection, answer.identity, answer.flashChipId)
                 }
             } finally {
                 if (!found) connection.close()
@@ -119,9 +138,9 @@ class Fm1Updater(
                     }
                 var retained = false
                 try {
-                    val identity = handshake(connection)
-                    if (identity != null && filter(identity)) {
-                        found += FoundDevice(connection, identity)
+                    val answer = handshakeAnswer(connection)
+                    if (answer != null && filter(answer.identity)) {
+                        found += FoundDevice(connection, answer.identity, answer.flashChipId)
                         retained = true
                     }
                 } finally {
@@ -149,7 +168,12 @@ class Fm1Updater(
         return found.singleOrNull()
     }
 
-    private suspend fun handshake(connection: MidiConnection): Fm1Identity? {
+    private data class HandshakeAnswer(
+        val identity: Fm1Identity,
+        val flashChipId: Int?,
+    )
+
+    private suspend fun handshakeAnswer(connection: MidiConnection): HandshakeAnswer? {
         connection.drain()
         repeat(timing.handshakeAttempts) {
             try {
@@ -163,17 +187,47 @@ class Fm1Updater(
             }
             val found =
                 withTimeoutOrNull(timing.handshakeWait) {
-                    var result: Fm1Identity? = null
+                    var result: HandshakeAnswer? = null
                     while (result == null) {
                         coroutineContext.ensureActive()
                         val reply = connection.receive(timing.handshakeWait) ?: break
-                        result = Fm1Identity.fromHandshakeReply(reply)
+                        val identity = Fm1Identity.fromHandshakeReply(reply) ?: continue
+                        result = HandshakeAnswer(identity, Fm1Identity.flashChipId(reply))
                     }
                     result
                 }
-            if (found != null) return found
+            if (found != null) {
+                if (!found.identity.mayTellMore(found.flashChipId)) return found
+                val full = fullIdentity(connection, found.identity)
+                return full?.let { HandshakeAnswer(it.identity, it.flashChipId ?: found.flashChipId) } ?: found
+            }
         }
         return null
+    }
+
+    private suspend fun fullIdentity(
+        connection: MidiConnection,
+        start: Fm1Identity,
+    ): HandshakeAnswer? {
+        try {
+            connection.send(Fm1Message.FULL_IDENTITY_QUERY)
+        } catch (error: CancellationException) {
+            throw error
+        } catch (_: Exception) {
+            return null
+        }
+        return withTimeoutOrNull(timing.fullIdentityWait) {
+            var result: HandshakeAnswer? = null
+            while (result == null) {
+                coroutineContext.ensureActive()
+                val reply = connection.receive(timing.fullIdentityWait) ?: break
+                val identity = Fm1Identity.fromHandshakeReply(reply) ?: continue
+                if (identity.text.startsWith(start.text)) {
+                    result = HandshakeAnswer(identity, Fm1Identity.flashChipId(reply))
+                }
+            }
+            result
+        }
     }
 
     private suspend fun installUnlocked(
@@ -221,11 +275,12 @@ class Fm1Updater(
                 device.connection.send(Fm1Message.upgradeCommand)
                 pause(timing.afterUpgradeCommand)
                 serve(
-                    device.connection,
-                    packageFile.logicalImage,
-                    Fm1UpdateError.Phase.STAGING,
-                    timing.stagingIdleLimit,
-                ) { _, requests -> events(UpdateEvent.Staging(requests)) }
+                    connection = device.connection,
+                    image = packageFile.logicalImage,
+                    phase = Fm1UpdateError.Phase.STAGING,
+                    idleLimit = timing.stagingIdleLimit,
+                    progress = { _, requests -> events(UpdateEvent.Staging(requests)) },
+                )
             } finally {
                 device.connection.close()
             }
@@ -257,54 +312,22 @@ class Fm1Updater(
         buildId: BuildId?,
         events: (UpdateEvent) -> Unit,
     ): Fm1Identity {
-        val writing =
-            try {
-                events(UpdateEvent.LoaderFound(loader.identity))
-                loader.connection.send(Fm1Message.upgradeCommand)
-                pause(timing.afterUpgradeCommand)
-                val progress = WriteProgress(packageFile.container.applicationRange)
-                serve(
-                    loader.connection,
-                    packageFile.logicalImage,
-                    Fm1UpdateError.Phase.WRITING,
-                    timing.writeIdleLimit,
-                ) { request, _ -> events(progress.record(request)) }
-            } finally {
-                loader.connection.close()
-            }
-        if (!writing.finished) {
-            throw if (writing.lost) {
-                Fm1UpdateError.Disconnected(
-                    Fm1UpdateError.Phase.WRITING,
-                    writing.requests,
-                )
-            } else {
-                Fm1UpdateError.Stalled(Fm1UpdateError.Phase.WRITING, writing.requests)
-            }
-        }
-        events(UpdateEvent.Rebooting)
-        pause(timing.firmwareBoot)
-        val returned = waitFor(timing.returnSearch) { !it.isLoader } ?: throw Fm1UpdateError.DeviceDidNotReturn
+        val writing = serveLoader(packageFile, loader, events)
+        val returned = returnedDevice(writing, events)
         try {
-            if (returned.identity !=
-                packageFile.identity
-            ) {
+            if (returned.identity != packageFile.identity) {
                 throw Fm1UpdateError.IdentityMismatch(packageFile.product, returned.identity.text)
             }
             if (buildId != null) {
                 val capability =
                     try {
                         capability(returned)
-                    } catch (
-                        error: CancellationException,
-                    ) {
+                    } catch (error: CancellationException) {
                         throw error
                     } catch (_: Exception) {
                         null
                     }
-                if (capability != null &&
-                    capability.buildId != buildId
-                ) {
+                if (capability != null && capability.buildId != buildId) {
                     throw Fm1UpdateError.BuildMismatch(buildId, capability.buildId)
                 }
             }
@@ -313,6 +336,75 @@ class Fm1Updater(
         } finally {
             returned.connection.close()
         }
+    }
+
+    private suspend fun serveLoader(
+        packageFile: FwscPackage,
+        loader: FoundDevice,
+        events: (UpdateEvent) -> Unit,
+    ): ServeOutcome {
+        val progress = WriteProgress(packageFile.container.applicationRange)
+        val outcome =
+            try {
+                events(UpdateEvent.LoaderFound(loader.identity))
+                loader.connection.send(Fm1Message.upgradeCommand)
+                pause(timing.afterUpgradeCommand)
+                serve(
+                    connection = loader.connection,
+                    image = packageFile.logicalImage,
+                    phase = Fm1UpdateError.Phase.WRITING,
+                    idleLimit = timing.writeIdleLimit,
+                    lookingAfterQuiet = timing.returnCheckAfter,
+                    progress = { request, _ -> events(progress.record(request)) },
+                    lookForReturn = {
+                        if (!progress.isNearlyWritten) {
+                            null
+                        } else {
+                            try {
+                                findOnlyUnlocked { it == packageFile.identity }
+                            } catch (error: CancellationException) {
+                                throw error
+                            } catch (_: Exception) {
+                                null
+                            }
+                        }
+                    },
+                )
+            } finally {
+                loader.connection.close()
+            }
+        if (outcome.lost && progress.isNearlyWritten) {
+            val returned =
+                waitFor(timing.returnSearch) {
+                    it == loader.identity || it == packageFile.identity
+                }
+            if (returned?.identity == packageFile.identity) {
+                outcome.returned = returned
+            } else {
+                returned?.connection?.close()
+            }
+        }
+        return outcome
+    }
+
+    private suspend fun returnedDevice(
+        writing: ServeOutcome,
+        events: (UpdateEvent) -> Unit,
+    ): FoundDevice {
+        writing.returned?.let {
+            events(UpdateEvent.Rebooting)
+            return it
+        }
+        if (!writing.finished) {
+            throw if (writing.lost) {
+                Fm1UpdateError.Disconnected(Fm1UpdateError.Phase.WRITING, writing.requests)
+            } else {
+                Fm1UpdateError.Stalled(Fm1UpdateError.Phase.WRITING, writing.requests)
+            }
+        }
+        events(UpdateEvent.Rebooting)
+        pause(timing.firmwareBoot)
+        return waitFor(timing.returnSearch) { !it.isLoader } ?: throw Fm1UpdateError.DeviceDidNotReturn
     }
 
     private suspend fun waitFor(
@@ -333,7 +425,9 @@ class Fm1Updater(
         image: ByteArray,
         phase: Fm1UpdateError.Phase,
         idleLimit: Duration,
+        lookingAfterQuiet: Duration? = null,
         progress: (ReadRequest, Int) -> Unit,
+        lookForReturn: suspend () -> FoundDevice? = { null },
     ): ServeOutcome {
         val outcome = ServeOutcome()
         val finishAddress =
@@ -345,9 +439,11 @@ class Fm1Updater(
                 Fm1Message.writeFinishAddress
             }
         var finishRequest: ReadRequest? = null
-        while (finishRequest == null) {
+        var quiet = ZERO
+        while (finishRequest == null && outcome.returned == null) {
+            val window = minOf(lookingAfterQuiet ?: idleLimit, idleLimit - quiet)
             val request =
-                withTimeoutOrNull(idleLimit) {
+                withTimeoutOrNull(window) {
                     var next: ReadRequest? = null
                     while (next == null && !outcome.lost) {
                         coroutineContext.ensureActive()
@@ -362,11 +458,22 @@ class Fm1Updater(
                     }
                     next
                 }
-            if (request == null) break
+            if (request == null) {
+                if (connection.isLost) outcome.lost = true
+                if (outcome.lost) break
+                quiet += window
+                if (lookingAfterQuiet != null) {
+                    outcome.returned = lookForReturn()
+                    if (outcome.returned != null) break
+                }
+                if (quiet >= idleLimit) break
+                continue
+            }
             if (request.isFinish) {
                 finishRequest = request
                 continue
             }
+            quiet = ZERO
             val end = request.address + request.length.toLong()
             if (request.length > Fm1Message.maximumReadLength || request.length < 0 ||
                 request.address > image.size.toLong() ||

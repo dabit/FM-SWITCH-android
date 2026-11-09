@@ -8,6 +8,7 @@ import dev.drewr.fm1.transport.MidiTransportException
 import dev.drewr.fm1.transport.PortDescriptor
 import dev.drewr.fm1.transport.SimulatedFm1
 import dev.drewr.fm1.updater.Fm1UpdateError
+import dev.drewr.fm1.updater.UpdaterTiming
 import dev.drewr.fmswitch.model.history.FlashHistory
 import dev.drewr.fmswitch.model.library.FirmwareLibrary
 import dev.drewr.fmswitch.model.library.StoredFirmware
@@ -29,6 +30,7 @@ import kotlin.io.path.createTempFile
 import kotlin.test.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 class FlashingTest {
@@ -128,18 +130,18 @@ class FlashingTest {
                     SimulatedFm1(options, backgroundScope)
                 }
             controller.configure(TransportKind.Simulated)
-            testScheduler.advanceTimeBy(1)
+            testScheduler.advanceTimeBy(UpdaterTiming.standard.fullIdentityWait + 1.milliseconds)
             runCurrent()
             assertTrue(controller.identity.value?.isLoader == true)
             settings.simulatedRecoveryMode = false
             settings.simulatedOpenFirmware = true
             controller.configure(TransportKind.Simulated)
-            testScheduler.advanceTimeBy(1)
+            testScheduler.advanceTimeBy(UpdaterTiming.standard.fullIdentityWait + 1.milliseconds)
             runCurrent()
             assertTrue(controller.identity.value?.isOpenFirmware == true)
             settings.simulatedOpenFirmware = false
             controller.configure(TransportKind.Simulated)
-            testScheduler.advanceTimeBy(1)
+            testScheduler.advanceTimeBy(UpdaterTiming.standard.fullIdentityWait + 1.milliseconds)
             runCurrent()
             assertTrue(controller.identity.value?.text == "FM-1_900")
         }

@@ -1,4 +1,4 @@
-// Ported from FM1Kit 0.4.5 Updater/WriteProgress.swift — MIT, Copyright (c) 2026 Drew Robinson; see fm1/LICENSE-FM1Kit.txt.
+// Ported from FM1Kit 0.6.0 Updater/WriteProgress.swift — MIT, Copyright (c) 2026 Drew Robinson; see fm1/LICENSE-FM1Kit.txt.
 package dev.drewr.fm1.updater
 
 import dev.drewr.fm1.protocol.Fm1Message
@@ -68,6 +68,13 @@ class WriteProgress(
             requests,
         )
 
+    /** True when nearly all of the pass that writes flash has been read. */
+    val isNearlyWritten: Boolean
+        get() = (if (isChecking) checkedFraction() else writtenFraction()) >= NEARLY_WRITTEN_THRESHOLD
+
+    private fun checkedFraction(): Double =
+        if (written.isEmpty) 0.0 else min(checked.cardinality().toDouble() / written.cardinality(), 1.0)
+
     private fun repeatedEvent(): UpdateEvent =
         when (val event = lastEvent) {
             is UpdateEvent.Checking -> UpdateEvent.Checking(event.fraction, requests)
@@ -83,5 +90,6 @@ class WriteProgress(
     companion object {
         const val CHECKING_THRESHOLD = 0.5
         const val REREADS_BEFORE_CHECKING = 3
+        const val NEARLY_WRITTEN_THRESHOLD = 0.95
     }
 }

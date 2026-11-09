@@ -1,4 +1,4 @@
-// Ported from FM1Kit 0.4.5 Tests/FM1KitTests/WriteProgressTests.swift — MIT, Copyright (c) 2026 Drew Robinson; see fm1/LICENSE-FM1Kit.txt.
+// Ported from FM1Kit 0.6.0 Tests/FM1KitTests/WriteProgressTests.swift — MIT, Copyright (c) 2026 Drew Robinson; see fm1/LICENSE-FM1Kit.txt.
 package dev.drewr.fm1.updater
 
 import dev.drewr.fm1.protocol.ReadRequest
@@ -87,6 +87,24 @@ class WriteProgressTest {
         val p = WriteProgress(0 until 513)
         p.record(ReadRequest(address = 0, length = 512))
         assertEquals(1.0, fraction(p.record(ReadRequest(address = 512, length = 1))))
+    }
+
+    @Test fun countsNearlyAllOfTheApplicationAreaAsNearlyWritten() {
+        val p = progress()
+        repeat(60) { p.record(read(it)) }
+        assertTrue(!p.isNearlyWritten)
+        p.record(read(60))
+        assertTrue(p.isNearlyWritten)
+    }
+
+    @Test fun aSecondPassCountsOnlyOnceItIsNearlyDone() {
+        val p = progress()
+        repeat(64) { p.record(read(it)) }
+        repeat(3) { p.record(read(it)) }
+        repeat(57) { p.record(read(it + 3)) }
+        assertTrue(!p.isNearlyWritten)
+        p.record(read(60))
+        assertTrue(p.isNearlyWritten)
     }
 
     @Test fun aBackwardsLoaderReportsSteadyProgress() = aBackwardsPassRisesSteadilyRatherThanJumping()

@@ -1,4 +1,4 @@
-// Ported from FM1Kit 0.4.5 Protocol/FM1Message.swift — MIT, Copyright (c) 2026 Drew Robinson; see fm1/LICENSE-FM1Kit.txt.
+// Ported from FM1Kit 0.6.0 Protocol/FM1Message.swift — MIT, Copyright (c) 2026 Drew Robinson; see fm1/LICENSE-FM1Kit.txt.
 package dev.drewr.fm1.protocol
 
 object Fm1Message {
@@ -9,6 +9,7 @@ object Fm1Message {
     val finishPayload = "success\u0000".encodeToByteArray()
     val maximumReadLength: Int get() = 512
     val prefix = bytes(0x00, 0x59)
+    val FULL_IDENTITY_QUERY = command(identityCommand, byteArrayOf(1))
     val readCommand: Int get() = 0x30
     val identityCommand: Int get() = 0x11
     val capabilityCommand: Int get() = 0x31

@@ -23,10 +23,16 @@ class Fm1Identity private constructor(
 
     fun isLoaderFor(model: String): Boolean = isLoader && hardwareModel == model
 
-    fun handshakeReply(): ByteArray {
+    fun handshakeReply(flashChipId: Int = 0): ByteArray {
         val textLength = REPLY_LENGTH - Fm1Message.headerLength - 1
         val content = text.encodeToByteArray().copyOf(textLength)
         val body = Fm1Message.header(Fm1Message.identityCommand, textLength) + content
+        if (text.length < FLASH_CHIP_OFFSET) {
+            val start = Fm1Message.headerLength + FLASH_CHIP_OFFSET
+            body[start] = (flashChipId shr 16).toByte()
+            body[start + 1] = (flashChipId shr 8).toByte()
+            body[start + 2] = flashChipId.toByte()
+        }
         return Fm1Message.frame(body + byteArrayOf(Fm1Message.checksum(body, Fm1Message.headerLength)))
     }
 
@@ -41,6 +47,7 @@ class Fm1Identity private constructor(
         private const val ARMED_LOADER_MODEL = "ota-FM1C"
         private const val ARMED_PREFIX_LENGTH = 16
         private const val REPLY_LENGTH = 34
+        private const val FLASH_CHIP_OFFSET = 24
         val officialV15 = parse("FM-1_015")!!
         val officialV16 = parse("FM-1_016")!!
 
@@ -88,5 +95,23 @@ class Fm1Identity private constructor(
             if (textBytes.any { Fm1Message.u(it) >= 0x80 }) return null
             return parse(textBytes.decodeToString())
         }
+
+        fun flashChipId(inHandshakeReply: ByteArray): Int? {
+            val identity = fromHandshakeReply(inHandshakeReply) ?: return null
+            if (identity.text.length >= FLASH_CHIP_OFFSET) return null
+            val body = Fm1Message.unframe(inHandshakeReply) ?: return null
+            val start = Fm1Message.headerLength + FLASH_CHIP_OFFSET
+            val id =
+                (Fm1Message.u(body[start]) shl 16) or
+                    (Fm1Message.u(body[start + 1]) shl 8) or
+                    Fm1Message.u(body[start + 2])
+            return id.takeIf { it != 0 }
+        }
     }
+
+    internal val mayBeShortened: Boolean
+        get() = !isLoader && !isOfficial && text.substringAfterLast('_', "").length == 3
+
+    internal fun mayTellMore(thanAnswerWith: Int?): Boolean =
+        !isLoader && !isOfficial && (mayBeShortened || thanAnswerWith == null)
 }

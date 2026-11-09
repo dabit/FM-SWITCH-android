@@ -1,4 +1,4 @@
-// Ported from FM1Kit 0.4.5 Updater/UpdaterTiming.swift — MIT, Copyright (c) 2026 Drew Robinson; see fm1/LICENSE-FM1Kit.txt.
+// Ported from FM1Kit 0.6.0 Updater/UpdaterTiming.swift — MIT, Copyright (c) 2026 Drew Robinson; see fm1/LICENSE-FM1Kit.txt.
 package dev.drewr.fm1.updater
 
 import kotlin.time.Duration
@@ -21,6 +21,8 @@ data class UpdaterTiming(
     val voiceReplyWait: Duration = 10.seconds,
     val libraryReplyWait: Duration = 1.seconds,
     val handshakeAttempts: Int = 2,
+    val fullIdentityWait: Duration = 300.milliseconds,
+    val returnCheckAfter: Duration = 5.seconds,
 ) {
     companion object {
         val standard = UpdaterTiming()

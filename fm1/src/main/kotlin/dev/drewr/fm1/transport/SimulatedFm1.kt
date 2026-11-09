@@ -42,6 +42,11 @@ class SimulatedFm1(
         var bootloaderVersion: String? = null
         var comparesBootArea: Boolean = false
         var refusesAfterHeader: Boolean = false
+        var flashChipId: Int = 0
+        var shortensIdentity: Boolean = false
+        var reportsFlashChipOnlyWhenAsked: Boolean = false
+        var restartsWithoutFinishing: Boolean = false
+        var keepsConnectionThroughRestart: Boolean = false
     }
 
     private enum class Mode { FIRMWARE, LOADER, OFFLINE }
@@ -115,7 +120,7 @@ class SimulatedFm1(
     ) {
         when {
             sysex.contentEquals(Fm1Message.HANDSHAKE_QUERY) -> {
-                currentIdentity?.let { connection.toHost.deliver(it.handshakeReply()) }
+                answerHandshake(asksForFullIdentity = false, connection)
             }
 
             sysex.contentEquals(Fm1Message.upgradeCommand) -> {
@@ -129,15 +134,45 @@ class SimulatedFm1(
             else -> {
                 Fm1Message.parseCommand(sysex)?.let { (command, payload) ->
                     when (command) {
+                        Fm1Message.identityCommand -> {
+                            if (payload.contentEquals(byteArrayOf(1))) {
+                                answerHandshake(asksForFullIdentity = true, connection)
+                            } else {
+                                connection.fromHost.deliver(sysex)
+                            }
+                        }
+
                         Fm1Message.capabilityCommand,
                         Fm1Message.armCommand,
-                        -> handleOpenFirmwareCommand(command, payload, connection)
+                        -> {
+                            handleOpenFirmwareCommand(command, payload, connection)
+                        }
 
-                        else -> connection.fromHost.deliver(sysex)
+                        else -> {
+                            connection.fromHost.deliver(sysex)
+                        }
                     }
                 } ?: connection.fromHost.deliver(sysex)
             }
         }
+    }
+
+    private fun answerHandshake(
+        asksForFullIdentity: Boolean,
+        connection: SimulatedConnection,
+    ) {
+        val identity = currentIdentity ?: return
+        val answer =
+            if (options.shortensIdentity && !asksForFullIdentity) {
+                Fm1Identity.parse(
+                    identity.text.substringBeforeLast('_') + "_" + identity.text.substringAfterLast('_').take(3),
+                )
+                    ?: identity
+            } else {
+                identity
+            }
+        val flashChipId = if (options.reportsFlashChipOnlyWhenAsked && !asksForFullIdentity) 0 else options.flashChipId
+        connection.toHost.deliver(answer.handshakeReply(flashChipId))
     }
 
     private fun startSession(connection: SimulatedConnection) {
@@ -258,14 +293,16 @@ class SimulatedFm1(
                 }
             }
         }
-        if (
-            !exchange(
-                ReadRequest(address = Fm1Message.writeFinishAddress, length = 8),
-                Fm1Message.finishPayload,
-                connection,
-            )
-        ) {
-            return
+        if (!options.restartsWithoutFinishing) {
+            if (
+                !exchange(
+                    ReadRequest(address = Fm1Message.writeFinishAddress, length = 8),
+                    Fm1Message.finishPayload,
+                    connection,
+                )
+            ) {
+                return
+            }
         }
         synchronized(lock) {
             buildId = armedBuildId ?: BuildId.parse(packageToInstall.sha256)!!
@@ -363,7 +400,10 @@ internal class SimulatedConnection(
     private var closed = false
 
     override val isLost: Boolean
-        get() = synchronized(this) { closed || !device.isCurrent(generation) }
+        get() =
+            synchronized(this) {
+                closed || (!device.options.keepsConnectionThroughRestart && !device.isCurrent(generation))
+            }
 
     override fun send(sysex: ByteArray) {
         if (isLost) throw MidiTransportException.PortGone
